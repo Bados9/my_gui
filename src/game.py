@@ -2,6 +2,7 @@ import sys
 import os
 import signal
 import rospy
+import rospkg
 import math
 import gamePieces
 from PyQt4 import QtGui, QtCore, QtNetwork
@@ -13,17 +14,19 @@ class Tile:
         self.areaType = areaType
         self.adjacentRoads = [None]*6
         self.adjacentBuildings = [None]*6
+        self.position = position
 
 class Map:
-    def __init__(self):
+    def __init__(self, scene):
+        self.scene = scene
         self.tiles = [None] * 19
         #self.tiles = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
         self.tileNumbers = [None] * 19 #seradi se do zakladu, pak bude mozno posunout
         self.roads = []
         self.places = []
 
-    def addTile(self, areaType, position):
-        self.tiles[position] = Tile(areaType, position)
+    def addTile(self, areaType, position, index):
+        self.tiles[index] = Tile(areaType, position)
     
     def setTileNumbers(self, tileNumbers):
         self.tileNumbers = tileNumbers
@@ -36,6 +39,67 @@ class Map:
 
     def addRoad(self, city):
         pass
+
+    def hexCorners(self, center, size):
+        corners = []
+        for i in range(6):
+            angle_deg = 60 * i   + 30
+            if (size > 400): # hack for bounding hexagon
+                angle_deg -= 30
+            angle_rad = math.pi / 180 * angle_deg
+            corners.append([center[0] + size * math.cos(angle_rad),center[1] + size * math.sin(angle_rad)])
+        return corners
+
+    def drawTile(self, type, position, size):
+        corners = self.hexCorners(position, size)
+        polygon = QtGui.QPolygon([QtCore.QPoint(corners[0][0],corners[0][1]),QtCore.QPoint(corners[1][0],corners[1][1]), \
+                    QtCore.QPoint(corners[2][0],corners[2][1]),QtCore.QPoint(corners[3][0],corners[3][1]), \
+                    QtCore.QPoint(corners[4][0],corners[4][1]), QtCore.QPoint(corners[5][0],corners[5][1])])
+        polygonF = QtGui.QPolygonF(polygon)
+        self.polygon = QtGui.QGraphicsPolygonItem(polygonF)
+
+        if type == "MOUNTAINS":
+            self.polygon.setBrush(QtGui.QBrush(QtGui.QColor(169,169,169)))
+        elif type == "PASTURE":
+            self.polygon.setBrush(QtGui.QBrush(QtCore.Qt.green))
+        elif type == "FOREST":
+            self.polygon.setBrush(QtGui.QBrush(QtGui.QColor(34,139,34)))
+        elif type == "FIELDS":
+            self.polygon.setBrush(QtGui.QBrush(QtGui.QColor(255,255,0)))
+        elif type == "HILLS":
+            self.polygon.setBrush(QtGui.QBrush(QtGui.QColor(165,42,42)))
+        elif type == "DESERT":
+            self.polygon.setBrush(QtGui.QBrush(QtGui.QColor(255,140,0)))
+        elif type == "NONE":
+            self.polygon.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
+        else:
+            self.polygon.setBrush(QtGui.QBrush(QtCore.Qt.red))
+
+        self.polygon.setPen(QtGui.QPen(QtCore.Qt.black))
+        self.scene.addItem(self.polygon)
+
+    def drawMap(self):
+        size = 125
+        vertSkip = size*2
+        horSkip = math.sqrt(3)/2 * vertSkip
+        
+        for tile in self.tiles:
+            position = [1000-vertSkip,600-2*horSkip]
+            position[1] += tile.position[1]*horSkip
+            position[0] += tile.position[0]*vertSkip
+            if (tile.position[1] & 1):
+                position[0] -= vertSkip*0.5
+            self.drawTile(tile.areaType, position, size+size/6.5)
+
+        corners = self.hexCorners([1000, 600],size*5.5)
+        boundingPolygon = QtGui.QPolygon([QtCore.QPoint(corners[0][0],corners[0][1]),QtCore.QPoint(corners[1][0],corners[1][1]), \
+                    QtCore.QPoint(corners[2][0],corners[2][1]),QtCore.QPoint(corners[3][0],corners[3][1]), \
+                    QtCore.QPoint(corners[4][0],corners[4][1]), QtCore.QPoint(corners[5][0],corners[5][1])])
+        boundingPolygonF = QtGui.QPolygonF(boundingPolygon)
+        self.boundingPolygon = QtGui.QGraphicsPolygonItem(boundingPolygonF)
+        self.boundingPolygon.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
+        self.boundingPolygon.setPen(QtGui.QPen(QtCore.Qt.black))
+        self.scene.addItem(self.boundingPolygon)
 
     def printMap(self):
         areaTypesArray = [Tile.areaType for Tile in self.tiles]
@@ -83,6 +147,9 @@ class Player:
     def buyCity(self):
         pass
 
+    def drawPlayerBox(self):
+        pass
+
     def printStatus(self):
         print("."*80)
         print("Player number " + str(self.corner + 1) + " (color: " + self.color + ")")
@@ -101,6 +168,9 @@ class Player:
 
 class Game: 
     def __init__(self, scene):
+        rospack = rospkg.RosPack()
+        imagesPath = rospack.get_path('my_gui') + '/src/images/'
+
         self.scene = scene
         self.supplyCards = self.createStartingSupplyCards() #pole karet zasob
         self.actionCards = self.createStartingActionCards()
@@ -108,28 +178,14 @@ class Game:
         self.players = self.createPlayers(4) #TODO zmenit
         self.items = []
     
-        self.rect = QtGui.QGraphicsRectItem(0,0,50,50)
-        self.rect.setBrush(QtGui.QBrush(QtCore.Qt.blue))
+        self.rect = QtGui.QGraphicsRectItem(0,0,2000, 1200)
+        self.rect.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
         self.scene.addItem(self.rect)
-        self.button = ButtonItem(self.scene, 0, 0.6, "testbutton", None, True)
-        polygon = QtGui.QPolygon([QtCore.QPoint(287,250),QtCore.QPoint(200,300), \
-                    QtCore.QPoint(113,250),QtCore.QPoint(113,150),QtCore.QPoint(200,100), QtCore.QPoint(287,150)])
-        polygonF = QtGui.QPolygonF(polygon)
-        self.polygon = QtGui.QGraphicsPolygonItem(polygonF)
-        self.polygon.setBrush(QtGui.QBrush(QtCore.Qt.green))
-        self.polygon.setPen(QtGui.QPen(QtCore.Qt.red))
-        self.scene.addItem(self.polygon)
-
-        print("souradnice:" + "\n" + \
-                    self.hex_corner([200,200],100,0) + "\n" + \
-                    self.hex_corner([200,200],100,1) + "\n" + \
-                    self.hex_corner([200,200],100,2) + "\n" + \
-                    self.hex_corner([200,200],100,3) + "\n" + \
-                    self.hex_corner([200,200],100,4) + "\n" + \
-                    self.hex_corner([200,200],100,5) + "\n")
-
-        self.image = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage("/home/bados/catkin_ws/src/my_gui/src/spade_ace.png")), scene=self.scene)
-        self.image.setPos(800,200)
+        self.button = ButtonItem(self.scene, 0, 0.6, "BUTTON", None, True, scale = 2)
+        
+        self.map.drawMap()
+        # self.image = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + "spade_ace.png")), scene=self.scene)
+        # self.image.setPos(0,0)
         # self.pixmap = QtGui.QPixmap("/home/bados/catkin_ws/src/my_gui/src/spade_ace.png")
         # self.pixItem = QtGui.QGraphicsPixmapItem(self.pixmap)
         # self.scene.addItem(self.pixItem)
@@ -139,12 +195,7 @@ class Game:
         # self.descItem = items.DescItem(self.scene, 0.4, 0.4, self.button)
         # self.descItem.set_content("TESTOVACI TEXT", 3)
         # self.polygon = items.PolygonItem(self.scene, "NECO", [[0,1],[0,0.5]], [[1,1],[1.5,1.5],[0,0]])
-        # #self.list = items.ListItem(self.scene, 1, 0.5, 0.1, ["Item1","Item2","Item3"])
-
-    def hex_corner(self, center, size, i):
-        angle_deg = 60 * i   + 30
-        angle_rad = math.pi / 180 * angle_deg
-        return str(center[0] + size * math.cos(angle_rad)) + " " + str(center[1] + size * math.sin(angle_rad))
+        # #self.list = ListItem(self.scene, 0, 0, 0.1, ["Item1","Item2","Item3"])
 
     def createPlayers(self, count):
         colors = ["BLUE", "GREEN", "RED", "YELLOW"]
@@ -154,26 +205,26 @@ class Game:
         return playerPool
 
     def createDefaultMap(self):
-        defaultMap = Map()
-        defaultMap.addTile("MOUNTAINS",0)
-        defaultMap.addTile("PASTURE",1)
-        defaultMap.addTile("FOREST",2)
-        defaultMap.addTile("FIELDS",3)
-        defaultMap.addTile("HILLS",4)
-        defaultMap.addTile("PASTURE",5)
-        defaultMap.addTile("HILLS",6)
-        defaultMap.addTile("FIELDS",7)
-        defaultMap.addTile("FOREST",8)
-        defaultMap.addTile("DESERT",9)
-        defaultMap.addTile("FOREST",10)
-        defaultMap.addTile("MOUNTAINS",11)
-        defaultMap.addTile("FOREST",12)
-        defaultMap.addTile("MOUNTAINS",13)
-        defaultMap.addTile("FIELDS",14)
-        defaultMap.addTile("PASTURE",15)
-        defaultMap.addTile("HILLS",16)
-        defaultMap.addTile("FIELDS",17)
-        defaultMap.addTile("PASTURE",18)
+        defaultMap = Map(self.scene)
+        defaultMap.addTile("MOUNTAINS",[0,0],0)
+        defaultMap.addTile("PASTURE",[1,0],1)
+        defaultMap.addTile("FOREST",[2,0],2)
+        defaultMap.addTile("FIELDS",[0,1],3)
+        defaultMap.addTile("HILLS",[1,1],4)
+        defaultMap.addTile("PASTURE",[2,1],5)
+        defaultMap.addTile("HILLS",[3,1],6)
+        defaultMap.addTile("FIELDS",[-1,2],7)
+        defaultMap.addTile("FOREST",[0,2],8)
+        defaultMap.addTile("DESERT",[1,2],9)
+        defaultMap.addTile("FOREST",[2,2],10)
+        defaultMap.addTile("MOUNTAINS",[3,2],11)
+        defaultMap.addTile("FOREST",[0,3],12)
+        defaultMap.addTile("MOUNTAINS",[1,3],13)
+        defaultMap.addTile("FIELDS",[2,3],14)
+        defaultMap.addTile("PASTURE",[3,3],15)
+        defaultMap.addTile("HILLS",[0,4],16)
+        defaultMap.addTile("FIELDS",[1,4],17)
+        defaultMap.addTile("PASTURE",[2,4],18)
         defaultMap.setTileNumbers([10,2,9,12,6,4,10,9,11,0,3,8,8,3,4,5,5,6,11])
         return defaultMap
 

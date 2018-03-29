@@ -49,6 +49,12 @@ class menuTabs():
 
         self.game = Game(self.scene)
 
+    def touch_cb(self, data):
+    	print("TOUCH_CB DATA:\n" + data)
+    	for item in self.game.items:
+    		#check for collision
+    		pass
+
     def quitApp(self, event):
         sys.exit(0)
 
@@ -176,8 +182,7 @@ class MyGui(QtCore.QObject):
 def sigint_handler(*args):
     """Handler for the SIGINT signal."""
     sys.stderr.write('\r')
-    QtGui.QApplication.quit()
-
+    QtGui.QApplication.quit()	
 
 def main(args):
 
@@ -190,6 +195,9 @@ def main(args):
     gui = MyGui(0, 0, 1, 0.6, 2000, 1234)
     
     gui.menuTabs = menuTabs(gui.scene)
+
+    #rospy.Subscriber('art_touch_driver/touch', , gui.menuTabs.touch_cb)
+
     gui.debug_view()
 
     timer = QtCore.QTimer()
