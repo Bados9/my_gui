@@ -82,7 +82,7 @@ class MyGui(QtCore.QObject):
 
         self.scene = QtGui.QGraphicsScene(0, 0, int(w), int(h))
         self.scene.rpm = rpm
-        self.scene.setBackgroundBrush(QtCore.Qt.black)
+        self.scene.setBackgroundBrush(QtCore.Qt.blue)
 
         self.view = customGraphicsView(self.scene)
         self.view.setRenderHint(QtGui.QPainter.Antialiasing)
@@ -187,7 +187,7 @@ def main(args):
 
     app = QtGui.QApplication(sys.argv)
 
-    gui = MyGui(0, 0, 1.35, 0.64, 2000, 1234)
+    gui = MyGui(0, 0, 1, 0.6, 2000, 1234)
     
     gui.menuTabs = menuTabs(gui.scene)
     gui.debug_view()

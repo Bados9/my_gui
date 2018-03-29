@@ -6,7 +6,7 @@ import math
 import gamePieces
 from PyQt4 import QtGui, QtCore, QtNetwork
 from art_projected_gui.helpers import ProjectorHelper
-import items
+from items import *
 
 class Tile:
     def __init__(self, areaType, position): #mozna zbytecny
@@ -109,9 +109,9 @@ class Game:
         self.items = []
     
         self.rect = QtGui.QGraphicsRectItem(0,0,50,50)
-        self.rect.setBrush(QtGui.QBrush(QtCore.Qt.green))
+        self.rect.setBrush(QtGui.QBrush(QtCore.Qt.blue))
         self.scene.addItem(self.rect)
-
+        self.button = ButtonItem(self.scene, 0, 0.6, "testbutton", None, True)
         polygon = QtGui.QPolygon([QtCore.QPoint(287,250),QtCore.QPoint(200,300), \
                     QtCore.QPoint(113,250),QtCore.QPoint(113,150),QtCore.QPoint(200,100), QtCore.QPoint(287,150)])
         polygonF = QtGui.QPolygonF(polygon)
