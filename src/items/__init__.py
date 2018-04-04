@@ -3,6 +3,7 @@ from button_item import ButtonItem
 from object_item import ObjectItem
 from place_item import PlaceItem
 from polygon_item import PolygonItem
+from point_item import PointItem
 from posestamped_cursor_item import PoseStampedCursorItem
 from program_item import ProgramItem
 from square_grid_item import SquareItem

@@ -5,8 +5,9 @@ import signal
 import rospy
 from PyQt4 import QtGui, QtCore, QtNetwork
 from art_projected_gui.helpers import ProjectorHelper
-from items import ButtonItem
+from items import *
 from game import Game
+from art_msgs.msg import Touch
 
 class menuTabs():
     def __init__(self, scene, parent=None):
@@ -50,10 +51,22 @@ class menuTabs():
         self.game = Game(self.scene)
 
     def touch_cb(self, data):
-    	print("TOUCH_CB DATA:\n" + data)
-    	for item in self.game.items:
-    		#check for collision
-    		pass
+        print(data)
+        print("x = " + str(data.point.point.x))
+        print("y = " + str(data.point.point.y))
+        touch = PointItem(self.scene, data.point.point.x, data.point.point.y, None)
+        for item in self.mainMenuItems:
+            if item.collidesWithItem(touch):
+                print("nastala kolize s tlacitkem " + str(item.caption))
+            else:
+                print("zadna kolize")
+        self.scene.removeItem(touch)
+        
+        for item in self.game.items:
+            if item.collidesWithItem(touch):
+                print("nastala kolize s hexagonem na pozici")
+            else:
+                print("zadna kolize")
 
     def quitApp(self, event):
         sys.exit(0)
@@ -192,11 +205,11 @@ def main(args):
 
     app = QtGui.QApplication(sys.argv)
 
-    gui = MyGui(0, 0, 1, 0.6, 2000, 1234)
+    gui = MyGui(0, 0, 1.00, 0.60, 2000, 1234)
     
     gui.menuTabs = menuTabs(gui.scene)
 
-    #rospy.Subscriber('art_touch_driver/touch', , gui.menuTabs.touch_cb)
+    rospy.Subscriber('/art/interface/touchtable/touch', Touch, gui.menuTabs.touch_cb)
 
     gui.debug_view()
 

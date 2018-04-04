@@ -79,7 +79,7 @@ class Map:
         self.scene.addItem(self.polygon)
 
     def drawMap(self):
-        size = 125
+        size = 75
         vertSkip = size*2
         horSkip = math.sqrt(3)/2 * vertSkip
         
