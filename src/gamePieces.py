@@ -1,6 +1,5 @@
 class ActionCard:
 	def __init__(self, faceUp, actionType):
-		super().__init__(faceUp)
 		self.actionType = actionType
 		self.faceUp = faceUp
 
@@ -9,6 +8,11 @@ class ActionCard:
 			self.faceUp = False
 		else:
 			self.faceUp = True
+
+class Building:
+	def __init__(self, buildingType, color):
+		self.color = color
+		self.type = buildingType #CITY nebo VILLAGE ...nebo i ROAD?
 
 def main():
 	pass

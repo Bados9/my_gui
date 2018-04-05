@@ -3,20 +3,30 @@
 import sys
 import signal
 import rospy
+import rospkg
 from PyQt4 import QtGui, QtCore, QtNetwork
 from art_projected_gui.helpers import ProjectorHelper
 from items import *
 from game import Game
 from art_msgs.msg import Touch
 
+def QTtoART(x=None,y=None):
+    if y is None:
+        return x/2000.0
+    return 0.60 - y/2000.0
+
 class menuTabs():
     def __init__(self, scene, parent=None):
+        rospack = rospkg.RosPack()
+        imagesPath = rospack.get_path('my_gui') + '/src/images/'
+
         self.scene = scene
         self.context = "mainMenu"
         self.mainMenuItems = []
-        self.mainMenuItems.append(ButtonItem(self.scene, 0.6, 0.6, "New Game", None, self.launchGame, scale = 3))
-        self.mainMenuItems.append(ButtonItem(self.scene, 0.6, 0.5, "Settings", None, self.toSettings, scale = 3))
-        self.mainMenuItems.append(ButtonItem(self.scene, 0.6, 0.4, "Exit", None, self.quitApp, scale = 3))
+        self.mainMenuItems.append(ButtonItem(self.scene, QTtoART(x=950), QTtoART(y=0), "New Game", None, \
+            self.launchGame, scale = 3, background_color=QtCore.Qt.transparent,image_path=imagesPath+"button_play.png"))
+        self.mainMenuItems.append(ButtonItem(self.scene, 0.5, 0.5, "Settings", None, self.toSettings, scale = 3))
+        self.mainMenuItems.append(ButtonItem(self.scene, 0.5, 0.4, "Exit", None, self.quitApp, scale = 3))
 
         self.settingsItems = []
         self.settingsItems.append(ButtonItem(self.scene, 0.8, 0.3, "some settings", None, None, scale = 3))
@@ -41,13 +51,9 @@ class menuTabs():
             self.scene.addItem(item)
 
     def launchGame(self, event):
-        if self.context == "mainMenu":
-            for item in self.mainMenuItems:
-                self.scene.removeItem(item)
-        else:
-            for item in self.settingsItems:
-                self.scene.removeItem(item)
-
+        for item in self.mainMenuItems:
+            self.scene.removeItem(item)
+        self.context = "game"
         self.game = Game(self.scene)
 
     def touch_cb(self, data):
@@ -55,18 +61,27 @@ class menuTabs():
         print("x = " + str(data.point.point.x))
         print("y = " + str(data.point.point.y))
         touch = PointItem(self.scene, data.point.point.x, data.point.point.y, None)
-        for item in self.mainMenuItems:
-            if item.collidesWithItem(touch):
-                print("nastala kolize s tlacitkem " + str(item.caption))
-            else:
-                print("zadna kolize")
-        self.scene.removeItem(touch)
+        if self.context == "mainMenu":
+            for item in self.mainMenuItems:
+                if item.collidesWithItem(touch):
+                    print("nastala kolize s tlacitkem " + str(item.caption))
+                else:
+                    print("zadna kolize")
         
+        if self.context == "settings":
+            for item in self.settingsItems:
+                if item.collidesWithItem(touch):
+                    print("nastala kolize s tlacitkem " + str(item.caption))
+                else:
+                    print("zadna kolize")
+                        
         for item in self.game.items:
             if item.collidesWithItem(touch):
                 print("nastala kolize s hexagonem na pozici")
             else:
                 print("zadna kolize")
+
+        self.scene.removeItem(touch)
 
     def quitApp(self, event):
         sys.exit(0)
@@ -195,7 +210,7 @@ class MyGui(QtCore.QObject):
 def sigint_handler(*args):
     """Handler for the SIGINT signal."""
     sys.stderr.write('\r')
-    QtGui.QApplication.quit()	
+    QtGui.QApplication.quit()   
 
 def main(args):
 
