@@ -7,7 +7,7 @@ import rospkg
 from PyQt4 import QtGui, QtCore, QtNetwork
 from art_projected_gui.helpers import ProjectorHelper
 from items import *
-from game import Game
+from mainWindow import MainWindow
 from art_msgs.msg import Touch
 
 def QTtoART(x=None,y=None):
@@ -55,6 +55,7 @@ class menuTabs():
             self.scene.removeItem(item)
         self.context = "game"
         self.game = Game(self.scene)
+        self.game.nextTurn()
 
     def touch_cb(self, data):
         print(data)
@@ -222,9 +223,11 @@ def main(args):
 
     gui = MyGui(0, 0, 1.00, 0.60, 2000, 1234)
     
-    gui.menuTabs = menuTabs(gui.scene)
+    #gui.menuTabs = menuTabs(gui.scene)
 
-    rospy.Subscriber('/art/interface/touchtable/touch', Touch, gui.menuTabs.touch_cb)
+    gui.mainWindow = MainWindow(gui.scene)
+
+    #rospy.Subscriber('/art/interface/touchtable/touch', Touch, gui.menuTabs.touch_cb)
 
     gui.debug_view()
 

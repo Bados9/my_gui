@@ -8,114 +8,119 @@ import gamePieces
 from PyQt4 import QtGui, QtCore, QtNetwork
 from art_projected_gui.helpers import ProjectorHelper
 from items import *
+from gamePieces import *
+from art_msgs.msg import Touch
+
 
 rospack = rospkg.RosPack()
 imagesPath = rospack.get_path('my_gui') + '/src/images/'
 
 def QTtoART(x=None,y=None):
-	if y is None:
-		return x/2000
-	return 0.60 - y/2000
+    if y is None:
+        #print("x = " + str(x/2000))
+        return x/2000
+    #print("y = " + str(0.60 - y/2000))
+    return 0.60 - y/2000
 
 adjBuildings = {0 : [ 0, 1, 2, 8, 9,10],
-				1 : [ 2, 3, 4,10,11,12],
-				2 : [ 4, 5, 6,12,13,14],
-				3 : [ 7, 8, 9,17,18,19],
-				4 : [ 9,10,11,19,20,21],
-				5 : [11,12,13,21,22,23],
-				6 : [13,14,15,23,24,25],
-				7 : [16,17,18,27,28,29],
-				8 : [18,19,20,29,30,31],
-				9 : [20,21,22,31,32,33],
-			   10 : [22,23,24,33,34,35],
-			   11 : [24,25,26,35,36,37],
-			   12 : [28,29,30,38,39,40],
-			   13 : [30,31,32,40,41,42],
-			   14 : [32,33,34,42,43,44],
-			   15 : [34,35,36,44,45,46],
-			   16 : [39,40,41,47,48,49],
-			   17 : [41,42,43,49,50,51],
-			   18 : [43,44,45,51,52,53]}
+                1 : [ 2, 3, 4,10,11,12],
+                2 : [ 4, 5, 6,12,13,14],
+                3 : [ 7, 8, 9,17,18,19],
+                4 : [ 9,10,11,19,20,21],
+                5 : [11,12,13,21,22,23],
+                6 : [13,14,15,23,24,25],
+                7 : [16,17,18,27,28,29],
+                8 : [18,19,20,29,30,31],
+                9 : [20,21,22,31,32,33],
+               10 : [22,23,24,33,34,35],
+               11 : [24,25,26,35,36,37],
+               12 : [28,29,30,38,39,40],
+               13 : [30,31,32,40,41,42],
+               14 : [32,33,34,42,43,44],
+               15 : [34,35,36,44,45,46],
+               16 : [39,40,41,47,48,49],
+               17 : [41,42,43,49,50,51],
+               18 : [43,44,45,51,52,53]}
 
 crossroads = {  0 : [],
-				1 : [],
-				2 : [],
-				3 : [],
-				4 : [],
-				5 : [],
-				6 : [],
-				7 : [],
-				8 : [],
-				9 : [],
-			   10 : [],
-			   11 : [],
-			   12 : [],
-			   13 : [],
-			   14 : [],
-			   15 : [],
-			   16 : [],
-			   17 : [],
-			   18 : [],
-			   19 : [],
-			   20 : [],
-			   21 : [],
-			   22 : [],
-			   23 : [],
-			   24 : [],
-			   25 : [],
-			   26 : [],
-			   27 : [],
-			   28 : [],
-			   29 : [],
-			   30 : [],
-			   31 : [],
-			   32 : [],
-			   33 : [],
-			   34 : [],
-			   35 : [],
-			   36 : [],
-			   37 : [],
-			   38 : [],
-			   39 : [],
-			   40 : [],
-			   41 : [],
-			   42 : [],
-			   43 : [],
-			   44 : [],
-			   45 : [],
-			   46 : [],
-			   47 : [],
-			   48 : [],
-			   49 : [],
-			   50 : [],
-			   51 : [],
-			   52 : [],
-			   53 : []}
+                1 : [],
+                2 : [],
+                3 : [],
+                4 : [],
+                5 : [],
+                6 : [],
+                7 : [],
+                8 : [],
+                9 : [],
+               10 : [],
+               11 : [],
+               12 : [],
+               13 : [],
+               14 : [],
+               15 : [],
+               16 : [],
+               17 : [],
+               18 : [],
+               19 : [],
+               20 : [],
+               21 : [],
+               22 : [],
+               23 : [],
+               24 : [],
+               25 : [],
+               26 : [],
+               27 : [],
+               28 : [],
+               29 : [],
+               30 : [],
+               31 : [],
+               32 : [],
+               33 : [],
+               34 : [],
+               35 : [],
+               36 : [],
+               37 : [],
+               38 : [],
+               39 : [],
+               40 : [],
+               41 : [],
+               42 : [],
+               43 : [],
+               44 : [],
+               45 : [],
+               46 : [],
+               47 : [],
+               48 : [],
+               49 : [],
+               50 : [],
+               51 : [],
+               52 : [],
+               53 : []}
 
-areaSupplyDict = {	"MOUNTAINS" : "ORE",
-					"FOREST" : "LUMBER",
-					"HILLS" : "BRICK",
-					"PASTURE" : "WOOL",
-					"FIELDS" : "GRAIN",
-					"DESERT" : "NONE"
+areaSupplyDict = {  "MOUNTAINS" : "ORE",
+                    "FOREST" : "LUMBER",
+                    "HILLS" : "BRICK",
+                    "PASTURE" : "WOOL",
+                    "FIELDS" : "GRAIN",
+                    "DESERT" : "NONE"
 }
 
-def hexCorners(center, size):
+def hexCorners(center, size, orientation=None):
         corners = []
         for i in range(6):
             angle_deg = 60 * i   + 30
-            if (size > 400): # hack for bounding hexagon
+            if orientation is not None: # hack for bounding hexagon
                 angle_deg -= 30
             angle_rad = math.pi / 180 * angle_deg
             corners.append([center[0] + size * math.cos(angle_rad),center[1] + size * math.sin(angle_rad)])
-        return corners
+        return [corners[3], corners[4], corners[5], corners[0], corners[1], corners[2]]
 
 #################################################################################################################
-#################################					TILE CLASS 					#################################
+#################################                   TILE CLASS                  #################################
 #################################################################################################################
 
 class Tile:
-    def __init__(self, areaType, position, index, scene):
+    def __init__(self, areaType, position, index, scene, myMap):
         self.scene = scene
         self.areaType = areaType
         self.number = 0
@@ -125,15 +130,37 @@ class Tile:
         self.index = index
         self.coords = [0,0] #in pixels
         self.polygon = None
+        self.map = myMap
+        self.crossButtons = []
 
     def setNumber(self, number):
-    	self.number = number
+        self.number = number
 
-    def drawTile(self, size):
-    	vertSkip = size*2
+    def drawTileImg(self, size):
+        vertSkip = size*2
         horSkip = math.sqrt(3)/2 * vertSkip
 
-    	self.coords = [1000-vertSkip,600-2*horSkip]
+        self.coords = [930-vertSkip,520-2*horSkip]
+        self.coords[1] += self.position[1]*horSkip
+        self.coords[0] += self.position[0]*vertSkip
+        if (self.position[1] & 1):
+            self.coords[0] -= vertSkip*0.5
+       
+        self.tileImg = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + self.areaType + ".png")), scene=self.scene)
+        self.tileImg.setScale(0.345)
+        self.tileImg.setPos(self.coords[0],self.coords[1])
+        
+        if self.number == 1: #TODO kdyz se nerovna nule tam pak bude
+            self.numberImg = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + str(self.number) + ".png")), scene=self.scene)
+            self.numberImg.setPos(self.coords[0],self.coords[1])
+            self.numberImg.setScale(0.5)
+
+
+    def drawTile(self, size):
+        vertSkip = size*2
+        horSkip = math.sqrt(3)/2 * vertSkip
+
+        self.coords = [1000-vertSkip,600-2*horSkip]
         self.coords[1] += self.position[1]*horSkip
         self.coords[0] += self.position[0]*vertSkip
         if (self.position[1] & 1):
@@ -166,33 +193,71 @@ class Tile:
         self.polygon.setPen(QtGui.QPen(QtCore.Qt.black))
         self.scene.addItem(self.polygon)
 
-        self.image = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + self.number + ".png")), scene=self.scene)
-        self.image.setPos(self.coords[0],self.coords[1])
+        if self.number == 1: #TODO kdyz to neni 0 tam pak bude
+            self.numberImg = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + str(self.number) + ".png")), scene=self.scene)
+            self.numberImg.setPos(self.coords[0],self.coords[1])
+            self.numberImg.setScale(0.5)
 
-    def setFocus(self):
-    	self.polygon.setTransformOriginPoint(self.coords[0], self.coords[1]);
-    	self.polygon.setScale(1.5)
-    	self.scene.removeItem(self.polygon)
-    	self.scene.addItem(self.polygon)
-    	#TODO transformovat i cislo
-    	#TODO pridat buttonky kolem
+    def changeFocus(self, mode):
+        if self.tileImg.scale() == 0.4:
+            self.unsetFocus()
+        else:
+            self.setFocus(mode)
+
+    def setFocus(self, mode):
+        # self.polygon.setTransformOriginPoint(self.coords[0], self.coords[1]);
+        # self.polygon.setScale(1.5)
+        # self.scene.removeItem(self.polygon)
+        # self.scene.addItem(self.polygon)
+        
+        self.tileImg.setScale(0.4)
+        self.tileImg.setPos(self.coords[0]-10, self.coords[1]-10)
+        self.scene.removeItem(self.tileImg)
+        self.scene.addItem(self.tileImg)
+        
+        corners = hexCorners([self.coords[0]+45, self.coords[1]+30], 85)
+        self.crossButtons = []
+        for index, corner in enumerate(corners):
+            if self.map.places[self.adjacentBuildings[index]] is None:
+                self.crossButtons.append(ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
+                    None, self.build, scale = 3, background_color=QtCore.Qt.transparent, data=index, \
+                    image_path = imagesPath+"butt_crossroad_red.png"))
+            else: #TODO tady bude obrazek vesnice nebo tak
+                self.crossButtons.append(ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]), "", \
+                    None, True, scale = 3, background_color=QtCore.Qt.transparent, image_path = imagesPath+"butt_crossroad_blue.png"))
+        
+        self.scene.removeItem(self.numberImg)
+        self.scene.addItem(self.numberImg)
+        #TODO transformovat i cislo
+        #TODO pridat buttonky kolem
 
     def unsetFocus(self):
-    	self.polygon.setScale(1)
-    	self.scene.removeItem(self.polygon)
-    	self.scene.addItem(self.polygon)
-    	#TODO transformovat i cislo
-    	#TODO oddelat buttonky
+        # self.polygon.setScale(1)
+        # self.scene.removeItem(self.polygon)
+        # self.scene.addItem(self.polygon)
+
+        self.tileImg.setScale(0.345)
+        self.tileImg.setPos(self.coords[0], self.coords[1])
+        self.scene.removeItem(self.numberImg)
+        self.scene.addItem(self.numberImg)
+        for butt in self.crossButtons:
+            self.scene.removeItem(butt)
+        #TODO transformovat i cislo
+        #TODO oddelat buttonky
+
+    def build(self, button):
+        print("kliknulo se na krizovatku c." + str(self.adjacentBuildings[button.data]))
+
 
     def giveSupplies(self, game):
-    	for building in adjacentBuildings:
-    		if building is not None:
-    		   	game.giveSupplyToPlayer(building.color, self.supplyType)
-    			if building.type == "CITY":
-    				game.giveSupplyToPlayer(building.color, self.supplyType)
+        for index in self.adjacentBuildings:
+            if self.map.places[index] is not None:
+                game.giveSupplyToPlayer(self.map.places[index].color, self.supplyType)
+                if self.map.places[index].type == "CITY":
+                    game.giveSupplyToPlayer(self.map.places[index].color, self.supplyType)
 
 #################################################################################################################
-#################################					MAP CLASS 					#################################
+#################################                   MAP CLASS                   #################################
 #################################################################################################################
 
 class Map:
@@ -204,12 +269,12 @@ class Map:
         self.places = [None] * 54
 
     def addTile(self, areaType, position, index):
-        self.tiles[index] = Tile(areaType, position, index, self.scene)
+        self.tiles[index] = Tile(areaType, position, index, self.scene, self)
     
     def setTileNumbers(self, tileNumbers):
         self.tileNumbers = tileNumbers
         for tile in self.tiles:
-        	tile.setNumber(tileNumbers[tile.index])
+            tile.setNumber(tileNumbers[tile.index])
 
     def addCity(self, city):
         pass
@@ -224,9 +289,10 @@ class Map:
         size = 75
         
         for tile in self.tiles:
-            tile.drawTile(size)
+            #tile.drawTile(size)
+            tile.drawTileImg(size)
 
-        corners = hexCorners([1000, 600],size*5.5)
+        corners = hexCorners([1000, 600],size*5.5, True)
         boundingPolygon = QtGui.QPolygon([QtCore.QPoint(corners[0][0],corners[0][1]),QtCore.QPoint(corners[1][0],corners[1][1]), \
                     QtCore.QPoint(corners[2][0],corners[2][1]),QtCore.QPoint(corners[3][0],corners[3][1]), \
                     QtCore.QPoint(corners[4][0],corners[4][1]), QtCore.QPoint(corners[5][0],corners[5][1])])
@@ -246,11 +312,11 @@ class Map:
         print("TILE NUMBERS: " + str(self.tileNumbers))
 
 #################################################################################################################
-#################################					PLAYER CLASS 				#################################
+#################################                   PLAYER CLASS                #################################
 #################################################################################################################
 
 class Player:
-    def __init__(self, color, corner):
+    def __init__(self, color, corner, game):
         self.supplyCards = {"BRICK":0,"GRAIN":0,"LUMBER":0,"ORE":0,"WOOL":0} #TODO nejaky karty na zacatku ma
         self.actionCards = None
         self.color = color #barva figurky
@@ -259,6 +325,7 @@ class Player:
         self.settlements = 5
         self.cities = 4
         self.items = []
+        self.game = game
 
     def addSupplyCard(self, supplyType):
         self.supplyCards[supplyType] += 1
@@ -302,41 +369,43 @@ class Player:
         pass
 
     def drawPlayerUI(self, scene):
-    	boundingPolygon = QtGui.QPolygon([QtCore.QPoint(0,0),QtCore.QPoint(0,300), QtCore.QPoint(300,300),\
-    						QtCore.QPoint(300,0)])
+        boundingPolygon = QtGui.QPolygon([QtCore.QPoint(0,0),QtCore.QPoint(0,300), QtCore.QPoint(300,300),\
+                            QtCore.QPoint(300,0)])
         boundingPolygonF = QtGui.QPolygonF(boundingPolygon)
         self.boundingPolygon = QtGui.QGraphicsPolygonItem(boundingPolygonF)
         self.boundingPolygon.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
         self.boundingPolygon.setPen(QtGui.QPen(QtCore.Qt.black))
         scene.addItem(self.boundingPolygon)
 
-        self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=0), "New Game", self.boundingPolygon, True))
+        self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=0), "test", self.boundingPolygon, self.test, scale=3))
+
+    def test(self, event):
+        self.game.map.tiles[2].changeFocus("zatim zadnej")
 
 #################################################################################################################
-#################################					GAME CLASS 					#################################
+#################################                   GAME CLASS                  #################################
 #################################################################################################################
 
 class Game: 
     def __init__(self, scene):
+        rospy.Subscriber('/art/interface/touchtable/touch', Touch, self.touch_cb)
+
         self.scene = scene
+        self.colors = ["BLUE", "GREEN", "RED", "YELLOW"]
         self.supplyCards = self.createStartingSupplyCards() #pole karet zasob
         self.actionCards = self.createStartingActionCards()
         self.map = self.createDefaultMap() #TODO zmenit
         self.players = self.createPlayers(4) #TODO zmenit
         self.items = []
-    
-    	#na vymazani pak
+        self.turnNumber = -1
+
+        #na vymazani pak
         self.rect = QtGui.QGraphicsRectItem(0,0,2000, 1200)
         self.rect.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
         self.scene.addItem(self.rect)
         
         self.map.drawMap()
         self.players["RED"].drawPlayerUI(self.scene)
-        # self.image = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + "spade_ace.png")), scene=self.scene)
-        # self.image.setPos(0,0)
-        # self.pixmap = QtGui.QPixmap("/home/bados/catkin_ws/src/my_gui/src/spade_ace.png")
-        # self.pixItem = QtGui.QGraphicsPixmapItem(self.pixmap)
-        # self.scene.addItem(self.pixItem)
 
         # self.button = items.ButtonItem(self.scene, 0.1, 0.2, "BUTTON", None, True, scale=3)
         # self.label = items.DialogItem(self.scene, 0.5, 0.5, "BLABLABLA", ["YES","NO"], None)
@@ -345,11 +414,19 @@ class Game:
         # self.polygon = items.PolygonItem(self.scene, "NECO", [[0,1],[0,0.5]], [[1,1],[1.5,1.5],[0,0]])
         # #self.list = ListItem(self.scene, 0, 0.5, 0.1, ["Item1","Item2","Item3"])
 
+    def touch_cb(self, data):
+        # if self.state == "mapAction":
+        #     self.map.touch_cb(data)
+        # elif self.state == "playerTurn":
+        #     self.players[].touch_cb(data)
+
+        # for item in players[self.colors[self.turnNumber%len(self.colors)]]: #prohledava se pouze hrac na tahu
+        pass
+
     def createPlayers(self, count):
-        colors = ["BLUE", "GREEN", "RED", "YELLOW"]
         playerPool = {}
         for n in range(count):  
-            playerPool[colors[n]] = Player(colors[n], n)
+            playerPool[self.colors[n]] = Player(self.colors[n], n, self)
         return playerPool
 
     def createDefaultMap(self):
@@ -373,7 +450,7 @@ class Game:
         defaultMap.addTile("HILLS",[0,4],16)
         defaultMap.addTile("FIELDS",[1,4],17)
         defaultMap.addTile("PASTURE",[2,4],18)
-        defaultMap.setTileNumbers([10,2,9,12,6,4,10,9,11,0,3,8,8,3,4,5,5,6,11])
+        defaultMap.setTileNumbers([10,2,1,12,6,4,10,9,11,0,3,8,8,3,4,1,5,6,11])
         return defaultMap
 
     def createMap(self):
@@ -381,7 +458,6 @@ class Game:
         pass
 
     def createStartingSupplyCards(self):
-        #vytvoreni balicku jednotlivych karet zasob
         return {"BRICK":19,"GRAIN":19,"LUMBER":19,"ORE":19,"WOOL":19}
 
     def addSupplyCard(self, supplyType):
@@ -403,17 +479,21 @@ class Game:
         pass
 
     def distributeSupplies(self, number):
-        #podle cisla se rozdeli suroviny hracum
         #TODO cisla tileNumbers musi odpovidat cislum tiles!!!
         indices = [i for i, x in enumerate(self.map.tileNumbers) if x == number]
-        
+        for i in indices:
+            self.map.tiles[i].giveSupplies(self)
 
     def nextTurn(self):
+        self.turnNumber += 1
+        print("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player.")
         #hod kostkama
+        number = input("Cislo na kostkach:")
         #rozdeleni surovin
+        self.distributeSupplies(number)
         #obchodovani
+        self.printPlayers()
         #stavba
-        pass
 
     def printGameStatus(self):
         print("-"*80)
@@ -426,7 +506,7 @@ class Game:
         self.printPlayers()
 
     def printPlayers(self):
-        for player in self.players:
+        for key, player in self.players.iteritems():
             player.printStatus()
 
     def printSupplyCards(self):
