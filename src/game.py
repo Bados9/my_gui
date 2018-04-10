@@ -17,10 +17,10 @@ imagesPath = rospack.get_path('my_gui') + '/src/images/'
 
 def QTtoART(x=None,y=None):
     if y is None:
-        #print("x = " + str(x/2000))
-        return x/2000
-    #print("y = " + str(0.60 - y/2000))
-    return 0.60 - y/2000
+        #print("x = " + str(x/2000.0))
+        return x/2000.0
+    #print("y = " + str(0.60 - y/2000.0))
+    return 0.60 - y/2000.0
 
 adjBuildings = {0 : [ 0, 1, 2, 8, 9,10],
                 1 : [ 2, 3, 4,10,11,12],
@@ -214,8 +214,11 @@ class Tile:
         self.tileImg.setPos(self.coords[0]-10, self.coords[1]-10)
         self.scene.removeItem(self.tileImg)
         self.scene.addItem(self.tileImg)
-        
-        corners = hexCorners([self.coords[0]+45, self.coords[1]+30], 85)
+        if mode == "crossroad":
+            corners = hexCorners([self.coords[0]+45, self.coords[1]+30], 85)
+        elif mode == "road":
+            corners = hexCorners([self.coords[0]+45, self.coords[1]+30], 85, True)
+
         self.crossButtons = []
         for index, corner in enumerate(corners):
             if self.map.places[self.adjacentBuildings[index]] is None:
@@ -267,6 +270,7 @@ class Map:
         self.tileNumbers = [None] * 19 #seradi se do zakladu, pak bude mozno posunout
         self.roads = [None] * 70
         self.places = [None] * 54
+        self.touchContext = ["map", None]
 
     def addTile(self, areaType, position, index):
         self.tiles[index] = Tile(areaType, position, index, self.scene, self)
@@ -284,6 +288,19 @@ class Map:
 
     def addRoad(self, road):
         pass
+
+    def touch_cb(self, data):
+        if self.touchContext[0] == "tile":
+            tile.touch_cb(data)
+
+        if self.touchContext[0] == "map":
+            touch = PointItem(self.scene, data.point.point.x, data.point.point.y, None)
+            for tile in self.tiles:
+                if tile.tileImg.collidesWithItem(touch):
+                    tile.changeFocus()
+                    self.touchContext[0] = "tile"
+                    self.touchContext[1] = tile
+            self.scene.removeItem(touch)
 
     def drawMap(self):
         size = 75
@@ -369,18 +386,43 @@ class Player:
         pass
 
     def drawPlayerUI(self, scene):
-        boundingPolygon = QtGui.QPolygon([QtCore.QPoint(0,0),QtCore.QPoint(0,300), QtCore.QPoint(300,300),\
-                            QtCore.QPoint(300,0)])
-        boundingPolygonF = QtGui.QPolygonF(boundingPolygon)
-        self.boundingPolygon = QtGui.QGraphicsPolygonItem(boundingPolygonF)
-        self.boundingPolygon.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
-        self.boundingPolygon.setPen(QtGui.QPen(QtCore.Qt.black))
-        scene.addItem(self.boundingPolygon)
+        if self.corner == 0 or self.corner == 2:
+            self.boundingRectangle = QtGui.QGraphicsRectItem(0,750,600,450)
+            scene.addItem(self.boundingRectangle)
+            
+            self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=750), \
+                "Build road", self.boundingRectangle, self.test2, scale=2))
+            self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=850), \
+                "Build settlemet", self.boundingRectangle, self.test, scale=2))
+            self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=950), \
+                "Build city", self.boundingRectangle, self.test, scale=2))
+            self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=1050), \
+                "Buy action card", self.boundingRectangle, self.test, scale=2))
 
-        self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=0), "test", self.boundingPolygon, self.test, scale=3))
+        if self.corner == 1 or self.corner == 3:
+            self.boundingRectangle = QtGui.QGraphicsRectItem(1400,750,600,450)
+            scene.addItem(self.boundingRectangle)
+
+            self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=750), \
+                "test", self.boundingRectangle, self.test, scale=3))
+
+        if self.corner == 2:      
+            self.boundingRectangle.setTransformOriginPoint(300,975)
+            self.boundingRectangle.setRotation(180)
+            self.boundingRectangle.setX(1400)
+            self.boundingRectangle.setY(-750)
+
+        if self.corner == 3:
+            self.boundingRectangle.setTransformOriginPoint(1700,975)
+            self.boundingRectangle.setRotation(180)
+            self.boundingRectangle.setX(-1400)
+            self.boundingRectangle.setY(-750)
 
     def test(self, event):
-        self.game.map.tiles[2].changeFocus("zatim zadnej")
+        self.game.map.tiles[2].changeFocus("crossroad")
+
+    def test2(self, event):
+        self.game.map.tiles[2].changeFocus("road")
 
 #################################################################################################################
 #################################                   GAME CLASS                  #################################
@@ -391,22 +433,22 @@ class Game:
         rospy.Subscriber('/art/interface/touchtable/touch', Touch, self.touch_cb)
 
         self.scene = scene
-        self.colors = ["BLUE", "GREEN", "RED", "YELLOW"]
+        self.colors = ["blue", "green", "red", "yellow"]
         self.supplyCards = self.createStartingSupplyCards() #pole karet zasob
         self.actionCards = self.createStartingActionCards()
         self.map = self.createDefaultMap() #TODO zmenit
         self.players = self.createPlayers(4) #TODO zmenit
         self.items = []
         self.turnNumber = -1
-
+        self.state = "mapAction" #TODO zmenit
         #na vymazani pak
         self.rect = QtGui.QGraphicsRectItem(0,0,2000, 1200)
         self.rect.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
         self.scene.addItem(self.rect)
         
         self.map.drawMap()
-        self.players["RED"].drawPlayerUI(self.scene)
-
+        for key, player in self.players.iteritems():
+            player.drawPlayerUI(self.scene)
         # self.button = items.ButtonItem(self.scene, 0.1, 0.2, "BUTTON", None, True, scale=3)
         # self.label = items.DialogItem(self.scene, 0.5, 0.5, "BLABLABLA", ["YES","NO"], None)
         # self.descItem = items.DescItem(self.scene, 0.4, 0.4, self.button)
@@ -415,8 +457,8 @@ class Game:
         # #self.list = ListItem(self.scene, 0, 0.5, 0.1, ["Item1","Item2","Item3"])
 
     def touch_cb(self, data):
-        # if self.state == "mapAction":
-        #     self.map.touch_cb(data)
+        if self.state == "mapAction":
+            self.map.touch_cb(data)
         # elif self.state == "playerTurn":
         #     self.players[].touch_cb(data)
 
