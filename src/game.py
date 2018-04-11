@@ -105,6 +105,10 @@ areaSupplyDict = {  "MOUNTAINS" : "ORE",
                     "DESERT" : "NONE"
 }
 
+def canIBuildThere(place):
+    #kontrola jestli muze dany hrac stavet tam a tam
+    return True
+
 def hexCorners(center, size, orientation=None):
         corners = []
         for i in range(6):
@@ -132,9 +136,30 @@ class Tile:
         self.polygon = None
         self.map = myMap
         self.crossButtons = []
+        self.focus = False
 
     def setNumber(self, number):
         self.number = number
+
+    def drawTileBtn(self, size):
+        vertSkip = size*2
+        horSkip = math.sqrt(3)/2 * vertSkip
+
+        self.coords = [910-vertSkip,510-2*horSkip]
+        self.coords[1] += self.position[1]*horSkip
+        self.coords[0] += self.position[0]*vertSkip
+        if (self.position[1] & 1):
+            self.coords[0] -= vertSkip*0.5
+       
+        self.tileBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]), QTtoART(y=self.coords[1]), "", None,\
+            self.changeFocus, image_path=imagesPath + self.areaType + ".png", scale=8.5,\
+            background_color=QtCore.Qt.transparent)
+        self.tileBtn.h = 180
+
+        # if self.number == 1: #TODO kdyz se nerovna nule tam pak bude
+        #     self.numberImg = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + str(self.number) + ".png")), scene=self.scene)
+        #     self.numberImg.setPos(self.coords[0],self.coords[1])
+        #     self.numberImg.setScale(0.5)
 
     def drawTileImg(self, size):
         vertSkip = size*2
@@ -199,10 +224,12 @@ class Tile:
             self.numberImg.setScale(0.5)
 
     def changeFocus(self, mode):
-        if self.tileImg.scale() == 0.4:
+        if self.focus == True:
             self.unsetFocus()
+            self.focus = False
         else:
             self.setFocus(mode)
+            self.focus = True
 
     def setFocus(self, mode):
         # self.polygon.setTransformOriginPoint(self.coords[0], self.coords[1]);
@@ -210,27 +237,29 @@ class Tile:
         # self.scene.removeItem(self.polygon)
         # self.scene.addItem(self.polygon)
         
-        self.tileImg.setScale(0.4)
-        self.tileImg.setPos(self.coords[0]-10, self.coords[1]-10)
-        self.scene.removeItem(self.tileImg)
-        self.scene.addItem(self.tileImg)
+        # self.tileImg.setScale(0.4)
+        # self.tileImg.setPos(self.coords[0]-10, self.coords[1]-10)
+        # self.scene.removeItem(self.tileImg)
+        # self.scene.addItem(self.tileImg)
+
         if mode == "crossroad":
-            corners = hexCorners([self.coords[0]+45, self.coords[1]+30], 85)
+            corners = hexCorners([self.coords[0]+55, self.coords[1]+30], 85)
         elif mode == "road":
-            corners = hexCorners([self.coords[0]+45, self.coords[1]+30], 85, True)
+            corners = hexCorners([self.coords[0]+55, self.coords[1]+30], 80, True)
 
         self.crossButtons = []
         for index, corner in enumerate(corners):
             if self.map.places[self.adjacentBuildings[index]] is None:
-                self.crossButtons.append(ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
-                    None, self.build, scale = 3, background_color=QtCore.Qt.transparent, data=index, \
-                    image_path = imagesPath+"butt_crossroad_red.png"))
+                if canIBuildThere(self.adjacentBuildings[index]):
+                    self.crossButtons.append(ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
+                        None, self.build, scale = 3, background_color=QtCore.Qt.transparent, data=index, \
+                        image_path = imagesPath+"butt_crossroad_red.png"))
             else: #TODO tady bude obrazek vesnice nebo tak
                 self.crossButtons.append(ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]), "", \
                     None, True, scale = 3, background_color=QtCore.Qt.transparent, image_path = imagesPath+"butt_crossroad_blue.png"))
         
-        self.scene.removeItem(self.numberImg)
-        self.scene.addItem(self.numberImg)
+        # self.scene.removeItem(self.numberImg)
+        # self.scene.addItem(self.numberImg)
         #TODO transformovat i cislo
         #TODO pridat buttonky kolem
 
@@ -239,10 +268,10 @@ class Tile:
         # self.scene.removeItem(self.polygon)
         # self.scene.addItem(self.polygon)
 
-        self.tileImg.setScale(0.345)
-        self.tileImg.setPos(self.coords[0], self.coords[1])
-        self.scene.removeItem(self.numberImg)
-        self.scene.addItem(self.numberImg)
+        # self.tileImg.setScale(0.345)
+        # self.tileImg.setPos(self.coords[0], self.coords[1])
+        # self.scene.removeItem(self.numberImg)
+        # self.scene.addItem(self.numberImg)
         for butt in self.crossButtons:
             self.scene.removeItem(butt)
         #TODO transformovat i cislo
@@ -307,7 +336,8 @@ class Map:
         
         for tile in self.tiles:
             #tile.drawTile(size)
-            tile.drawTileImg(size)
+            #tile.drawTileImg(size)
+            tile.drawTileBtn(size)
 
         corners = hexCorners([1000, 600],size*5.5, True)
         boundingPolygon = QtGui.QPolygon([QtCore.QPoint(corners[0][0],corners[0][1]),QtCore.QPoint(corners[1][0],corners[1][1]), \
@@ -441,11 +471,15 @@ class Game:
         self.items = []
         self.turnNumber = -1
         self.state = "mapAction" #TODO zmenit
-        #na vymazani pak
+        
+        #TODO na vymazani pak
         self.rect = QtGui.QGraphicsRectItem(0,0,2000, 1200)
         self.rect.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
         self.scene.addItem(self.rect)
         
+        self.announcementArea = DescItem(self.scene, 0.4, 0.05, None)
+        self.announcementArea.set_content("TESTOVACI TEXT", 3)
+
         self.map.drawMap()
         for key, player in self.players.iteritems():
             player.drawPlayerUI(self.scene)
