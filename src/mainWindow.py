@@ -33,6 +33,8 @@ class MainWindow():
         for item in self.settingsItems:
             self.scene.removeItem(item)
 
+        self.mainMenuItems[0].cursor_click()
+
     def toMainMenu(self, event):
         self.context = "mainMenu"
         for item in self.settingsItems:
@@ -54,7 +56,7 @@ class MainWindow():
             self.scene.removeItem(item)
         self.context = "game"
         self.game = Game(self.scene)
-        #self.game.nextTurn()
+        self.game.nextTurn()
 
     def touch_cb(self, data):
         print(data)
