@@ -12,7 +12,7 @@ class ActionCard:
 class Building:
 	def __init__(self, buildingType, color):
 		self.color = color
-		self.type = buildingType #CITY nebo VILLAGE ...nebo i ROAD?
+		self.type = buildingType #city nebo settlement nebo road?
 
 def main():
 	pass

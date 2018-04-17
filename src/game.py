@@ -142,24 +142,22 @@ def canIBuildThereSettlement(place, game):
         b = set(value)
         if len(a.intersection(b)) > 0:
             neighbours.append(key)
-    neighbours.remove(place)
-    #print("sousedem c. " + str(place) + " jsou krizovatky c. " + str(neighbours))       
+    neighbours.remove(place)       
     for neighbour in neighbours:
         if game.map.places[neighbour] is not None:
             return False
-    print("nikde neni zadna vesnice")
     if game.turnNumber > 7:
         for road in crossroads[place]:
             if game.map.roads[road] is not None and game.map.roads[road].color == game.colors[game.turnNumber%len(game.colors)]:
                 return True
-        print("ale ani cesta -- misto" + str(place))
         return False
     else:
         return True
     
 def canIBuildThereCity(place, game):
-    
-    return True
+    if game.map.places[place] is not None and game.map.places[place].color == game.colors[game.turnNumber%len(game.colors)]:
+        return True
+    return False
 
 def canIBuildThereRoad(road, game):
     if game.map.roads[road] is not None:
@@ -168,7 +166,6 @@ def canIBuildThereRoad(road, game):
     for key, value in crossroads.items():
         if road in value:
             neighbours.append(key)
-    #print("silnice c. " + str(road) + " vede ke krizovatkam " + str(neighbours))
     for neighbour in neighbours:
         if game.map.places[neighbour] is not None and game.map.places[neighbour].color == \
         game.colors[game.turnNumber%len(game.colors)]:
@@ -212,8 +209,12 @@ class Tile:
         self.coords = [0,0] #in pixels
         self.polygon = None
         self.map = myMap
-        self.crossButtons = []
         self.focus = False
+        self.crossButtons = [None] * 6
+        self.roadButtons = [None] * 6
+        self.roadIcons = [None] * 6
+        self.cityIcons = [None] * 6
+        self.settlementIcons = [None] * 6
 
     def setNumber(self, number):
         self.number = number
@@ -237,92 +238,43 @@ class Tile:
         #     self.numberImg = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + str(self.number) + ".png")), scene=self.scene)
         #     self.numberImg.setPos(self.coords[0],self.coords[1])
         #     self.numberImg.setScale(0.5)
-
-    def drawTileImg(self, size):
-        vertSkip = size*2
-        horSkip = math.sqrt(3)/2 * vertSkip
-
-        self.coords = [930-vertSkip,520-2*horSkip]
-        self.coords[1] += self.position[1]*horSkip
-        self.coords[0] += self.position[0]*vertSkip
-        if (self.position[1] & 1):
-            self.coords[0] -= vertSkip*0.5
-       
-        self.tileImg = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + self.areaType + ".png")), scene=self.scene)
-        self.tileImg.setScale(0.345)
-        self.tileImg.setPos(self.coords[0],self.coords[1])
-        
-        if self.number == 1: #TODO kdyz se nerovna nule tam pak bude
-            self.numberImg = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + str(self.number) + ".png")), scene=self.scene)
-            self.numberImg.setPos(self.coords[0],self.coords[1])
-            self.numberImg.setScale(0.5)
-
-
-    def drawTile(self, size):
-        vertSkip = size*2
-        horSkip = math.sqrt(3)/2 * vertSkip
-
-        self.coords = [1000-vertSkip,600-2*horSkip]
-        self.coords[1] += self.position[1]*horSkip
-        self.coords[0] += self.position[0]*vertSkip
-        if (self.position[1] & 1):
-            self.coords[0] -= vertSkip*0.5
-
-        corners = hexCorners(self.coords, size+size/6.5)
-        polygon = QtGui.QPolygon([QtCore.QPoint(corners[0][0],corners[0][1]),QtCore.QPoint(corners[1][0],corners[1][1]), \
-                    QtCore.QPoint(corners[2][0],corners[2][1]),QtCore.QPoint(corners[3][0],corners[3][1]), \
-                    QtCore.QPoint(corners[4][0],corners[4][1]), QtCore.QPoint(corners[5][0],corners[5][1])])
-        polygonF = QtGui.QPolygonF(polygon)
-        self.polygon = QtGui.QGraphicsPolygonItem(polygonF)
-
-        if self.areaType == "MOUNTAINS":
-            self.polygon.setBrush(QtGui.QBrush(QtGui.QColor(169,169,169)))
-        elif self.areaType == "PASTURE":
-            self.polygon.setBrush(QtGui.QBrush(QtCore.Qt.green))
-        elif self.areaType == "FOREST":
-            self.polygon.setBrush(QtGui.QBrush(QtGui.QColor(34,139,34)))
-        elif self.areaType == "FIELDS":
-            self.polygon.setBrush(QtGui.QBrush(QtGui.QColor(255,255,0)))
-        elif self.areaType == "HILLS":
-            self.polygon.setBrush(QtGui.QBrush(QtGui.QColor(165,42,42)))
-        elif self.areaType == "DESERT":
-            self.polygon.setBrush(QtGui.QBrush(QtGui.QColor(255,140,0)))
-        elif self.areaType == "NONE":
-            self.polygon.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
-        else:
-            self.polygon.setBrush(QtGui.QBrush(QtCore.Qt.red))
-
-        self.polygon.setPen(QtGui.QPen(QtCore.Qt.black))
-        self.scene.addItem(self.polygon)
-
-        if self.number == 1: #TODO kdyz to neni 0 tam pak bude
-            self.numberImg = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + str(self.number) + ".png")), scene=self.scene)
-            self.numberImg.setPos(self.coords[0],self.coords[1])
-            self.numberImg.setScale(0.5)
-
+    
     def updateTile(self):
+            if self.index in [4,5,8,10,13,14]:
+                self.unsetFocus()
+                return
             self.unsetFocus()
             corners = hexCorners([self.coords[0]+55, self.coords[1]+55], 85)
-            self.crossButtons = []
             for index, corner in enumerate(corners):
                 if self.map.places[self.adjacentBuildings[index]] is not None:
-                    self.crossButtons.append(ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]), "", \
-                        None, doNothing, scale = 3, background_color=QtCore.Qt.transparent, image_path = imagesPath+"village_" + \
-                        self.map.places[self.adjacentBuildings[index]].color + ".png"))
-                    self.crossButtons[index].h = 55
-                else:
-                    self.crossButtons.append(None)
+                    if self.map.places[self.adjacentBuildings[index]].type == "settlement":
+                        if self.settlementIcons[index] is None:
+                            self.settlementIcons[index] = (ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]), "", \
+                            None, self.buildCity, scale = 3, background_color=QtCore.Qt.transparent, image_path = imagesPath+"village_" + \
+                            self.map.places[self.adjacentBuildings[index]].color + ".png", data=index))
+                        self.settlementIcons[index].h = 55
+
+                    elif self.map.places[self.adjacentBuildings[index]].type == "city":
+                        if self.cityIcons[index] is None:
+                            self.cityIcons[index] = (ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]), "", \
+                                None, doNothing, scale = 3, background_color=QtCore.Qt.transparent, image_path = imagesPath+"city_" + \
+                                self.map.places[self.adjacentBuildings[index]].color + ".png"))
+                            self.cityIcons[index].h = 55
 
             corners = hexCorners([self.coords[0]+75, self.coords[1]+55], 75, True)
-            self.roadButtons = []
+
             for index, corner in enumerate(corners):
                 if self.map.roads[self.adjacentRoads[index]] is not None:
-                    self.roadButtons.append(ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
-                        None, doNothing, background_color=QtCore.Qt.transparent, image_path = imagesPath+"road_"
-                         + self.map.roads[self.adjacentRoads[index]].color + ".png"))
-                    self.roadButtons[index].h = 55
-                else: 
-                   self.roadButtons.append(None)
+                    if self.roadIcons[index] is None:
+                        self.roadIcons[index] = (ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
+                            None, doNothing, background_color=QtCore.Qt.transparent, image_path = imagesPath+"road_"
+                             + self.map.roads[self.adjacentRoads[index]].color + ".png"))
+                        self.roadIcons[index].h = 55
+
+            for index, settlement in enumerate(self.settlementIcons):
+                if self.cityIcons[index] is not None:
+                    self.scene.removeItem(settlement)
+                    self.settlementIcons[index] = None
 
     def changeFocus(self, button=None):
         if self.focus == True:
@@ -331,38 +283,28 @@ class Tile:
             self.setFocus()
             
     def setFocus(self):
+        print("davam focus")
         if self.map.buildMode == "city" or self.map.buildMode == "settlement": #jeste nevim jak s mestem
             corners = hexCorners([self.coords[0]+55, self.coords[1]+55], 85)
-            self.crossButtons = []
             for index, corner in enumerate(corners):
                 if self.map.places[self.adjacentBuildings[index]] is None:
+                    print("mame tu volno")
                     if canIBuildThereSettlement(self.adjacentBuildings[index], self.map.game):
-                        self.crossButtons.append(ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
+                        self.crossButtons[index] = ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
                             None, self.buildSettlement, scale = 3, background_color=QtCore.Qt.transparent, data=index, \
-                            image_path = imagesPath+"butt_crossroad_red.png"))
+                            image_path = imagesPath+"butt_crossroad_red.png")
                         self.crossButtons[index].h = 55
-                    else:
-                        self.crossButtons.append(None)
-                else: #TODO moznost rozsirit na mesto
-                    self.crossButtons.append(ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]), "", \
-                        None, True, scale = 3, background_color=QtCore.Qt.transparent, image_path = imagesPath+"village_" + \
-                        self.map.places[self.adjacentBuildings[index]].color + ".png"))
-                    self.crossButtons[index].h = 55
 
         elif self.map.buildMode == "road":
-            corners = hexCorners([self.coords[0]+55, self.coords[1]+55], 80, True)
-            self.crossButtons = []
+            corners = hexCorners([self.coords[0]+55, self.coords[1]+55], 75, True)
             for index, corner in enumerate(corners):
                 if self.map.roads[self.adjacentRoads[index]] is None:
                     if canIBuildThereRoad(self.adjacentRoads[index], self.map.game):
-                        self.crossButtons.append(ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
+                        self.roadButtons[index] = ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
                             None, self.buildRoad, scale = 3, background_color=QtCore.Qt.transparent, data=index, \
-                            image_path = imagesPath+"butt_crossroad_red.png"))
-                        self.crossButtons[index].h = 55
-                    else:
-                        self.crossButtons.append(None)
-                else:
-                    self.crossButtons.append(None)
+                            image_path = imagesPath+"butt_crossroad_red.png")
+
+                        self.roadButtons[index].h = 55
         self.focus = True
 
     def unsetFocus(self): 
@@ -370,23 +312,31 @@ class Tile:
             for butt in self.crossButtons:
                 if butt is not None:
                     self.scene.removeItem(butt)
-            self.focus = False
-        
+            self.crossButtons = [None] * 6
+
+            for butt in self.roadButtons:
+                if butt is not None:
+                    self.scene.removeItem(butt)
+            self.roadButtons = [None] * 6
+        self.focus = False
+
     def buildSettlement(self, button=None):
         print("kliknulo se na krizovatku c." + str(self.adjacentBuildings[button.data]))
         if self.map.buildMode == "settlement":
             self.map.buildSettlement(self.adjacentBuildings[button.data])
 
     def buildRoad(self, button=None):
-        print("kliknulo se na cestu c." + str(self.adjacentRoads[button.data]))
         self.map.buildRoad(self.adjacentRoads[button.data])
-        #TODO postavit cestu
 
+    def buildCity(self, button=None):
+        if self.map.buildMode == "city":
+            self.map.buildCity(self.adjacentBuildings[button.data])
+            self.scene.removeItem(self.settlementIcons[button.data])
     def giveSupplies(self, game):
         for index in self.adjacentBuildings:
             if self.map.places[index] is not None:
                 game.giveSupplyToPlayer(self.map.places[index].color, self.supplyType)
-                if self.map.places[index].type == "CITY":
+                if self.map.places[index].type == "city":
                     game.giveSupplyToPlayer(self.map.places[index].color, self.supplyType)
 
 #################################################################################################################
@@ -400,7 +350,7 @@ class Map:
         self.tiles = [None] * 19
         self.tileNumbers = [None] * 19 #seradi se do zakladu, pak bude mozno posunout
         self.roads = [None] * 72
-        self.places = [None]*4 + [Building("settlement", "blue")]+ [None]* 54
+        self.places = [None]* 54
         self.touchContext = ["map", None]
         self.buildMode = "settlement"
 
@@ -410,54 +360,54 @@ class Map:
     def setTileNumbers(self, tileNumbers):
         self.tileNumbers = tileNumbers
         for tile in self.tiles:
-            tile.setNumber(tileNumbers[tile.index])
-
-    def buildCity(self, number):
-        
-        pass
+            tile.setNumber(tileNumbers[tile.index])        
 
     def buildSettlement(self, number):
         self.places[number] = Building("settlement", self.game.colors[self.game.turnNumber%len(self.game.colors)])
         for tile in self.tiles:
             tile.updateTile()
+        self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["settlements"] -= 1
         if self.game.turnNumber <= 7:
             self.game.nextTurn()
         else:
-            pass
+            self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "BRICK")
+            self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "LUMBER")
+            self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "WOOL")
+            self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
+            self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
 
+        self.game.checkGameEnd()
+
+    def buildCity(self, number):
+        if self.game.turnNumber <= 7:
+            return
+
+        self.places[number] = Building("city", self.game.colors[self.game.turnNumber%len(self.game.colors)])
+        for tile in self.tiles:
+            tile.updateTile()
+        self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["cities"] -= 1
+        self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["settlements"] += 1
+
+        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "ORE")
+        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "ORE")
+        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "ORE")
+        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
+        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
+        self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
+
+        self.game.checkGameEnd()
 
     def buildRoad(self, number):
-        print("stavim to na c. " + str(number))
         self.roads[number] = Building("road", self.game.colors[self.game.turnNumber%len(self.game.colors)])
         for tile in self.tiles:
             tile.updateTile()
-            pass
-
-    def touch_cb(self, data):
-        touch = PointItem(self.scene, data.point.point.x, data.point.point.y, None)
-        for tile in self.tiles:
-            if tile.tileBtn.collidesWithItem(touch):
-                tile.tileBtn.cursor_click()
-                break
-            if tile.focus:
-                for btn in tile.crossButtons:
-                    if btn is not None:
-                        if btn.collidesWithItem(touch):
-                            btn.cursor_click()
-                            break
-        self.scene.removeItem(touch)
-
-        # if self.touchContext[0] == "tile":
-        #     tile.touch_cb(data)
-
-        # if self.touchContext[0] == "map":
-        #     touch = PointItem(self.scene, data.point.point.x, data.point.point.y, None)
-        #     for tile in self.tiles:
-        #         if tile.tileImg.collidesWithItem(touch):
-        #             tile.changeFocus()
-        #             self.touchContext[0] = "tile"
-        #             self.touchContext[1] = tile
-        #     self.scene.removeItem(touch)
+        self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["roads"] -= 1
+        if self.game.turnNumber <= 7:
+            self.game.nextTurn()
+        else:
+            self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "BRICK")
+            self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "LUMBER")
+            self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
 
     def updateMap(self):
         for tile in self.tiles:
@@ -467,28 +417,7 @@ class Map:
         size = 75
         
         for tile in self.tiles:
-            #tile.drawTile(size)
-            #tile.drawTileImg(size)
             tile.drawTileBtn(size)
-
-        # corners = hexCorners([1000, 600],size*5.5, True)
-        # boundingPolygon = QtGui.QPolygon([QtCore.QPoint(corners[0][0],corners[0][1]),QtCore.QPoint(corners[1][0],corners[1][1]), \
-        #             QtCore.QPoint(corners[2][0],corners[2][1]),QtCore.QPoint(corners[3][0],corners[3][1]), \
-        #             QtCore.QPoint(corners[4][0],corners[4][1]), QtCore.QPoint(corners[5][0],corners[5][1])])
-        # boundingPolygonF = QtGui.QPolygonF(boundingPolygon)
-        # self.boundingPolygon = QtGui.QGraphicsPolygonItem(boundingPolygonF)
-        # self.boundingPolygon.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
-        # self.boundingPolygon.setPen(QtGui.QPen(QtCore.Qt.black))
-        # self.scene.addItem(self.boundingPolygon)
-
-    def printMap(self):
-        areaTypesArray = [Tile.areaType for Tile in self.tiles]
-        print("         " + str(areaTypesArray[:3]) + "\n")
-        print("     " + str(areaTypesArray[3:7]) + "\n")
-        print(str(areaTypesArray[7:12]) + "\n")
-        print("     " + str(areaTypesArray[12:16]) + "\n")
-        print("         " + str(areaTypesArray[16:]) + "\n")
-        print("TILE NUMBERS: " + str(self.tileNumbers))
 
 #################################################################################################################
 #################################                   PLAYER CLASS                #################################
@@ -501,12 +430,12 @@ class Player:
         self.actionCards = None
         self.color = color #barva figurky
         self.corner = corner
-        self.roads = 15
-        self.settlements = 5
-        self.cities = 4
+        self.buildings = {"roads":15, "settlements":5, "cities":4}
         self.items = []
         self.cardItems = []
-        self.labels = {}
+        self.supplyLabels = {}
+        self.buildingLabels = {}
+        self.points = 0
 
     def addSupplyCard(self, supplyType):
         self.supplyCards[supplyType] += 1
@@ -523,12 +452,21 @@ class Player:
     def removeActionCard(self, supplyType):
         pass
 
-    #vsechny akce ktere muze hrac provest
+    def countPoints(self):
+        settlementsBuild = 5 - self.buildings["settlements"]
+        citiesBuild = 4 - self.buildings["cities"]
+        self.points = settlementsBuild + 2*citiesBuild
+
     def buyRoad(self, button=None):
         if self.supplyCards["BRICK"] < 1 or self.supplyCards["LUMBER"] < 1:
             self.game.announcementArea.set_content("You do not have enough resources", 3)
             self.game.announcementArea2.set_content("You do not have enough resources", 3)
             return
+        if self.buildings["roads"] == 0:
+            self.game.announcementArea.set_content("You do not have any roads left", 3)
+            self.game.announcementArea2.set_content("You do not have any roads left", 3)
+            return
+
         buildingPermission = False
         for road in range(72):
             if canIBuildThereRoad(road, self.game) == True:
@@ -549,6 +487,11 @@ class Player:
             self.game.announcementArea.set_content("You do not have enough resources", 3)
             self.game.announcementArea2.set_content("You do not have enough resources", 3)
             return
+        if self.buildings["settlements"] == 0:
+            self.game.announcementArea.set_content("You do not have any settlements left", 3)
+            self.game.announcementArea2.set_content("You do not have any settlements left", 3)
+            return
+
         buildingPermission = False
         for place in range(54):
             if canIBuildThereSettlement(place, self.game) == True:
@@ -563,32 +506,35 @@ class Player:
         self.game.announcementArea.set_content("Choose tile", 3)
         self.game.announcementArea2.set_content("Choose tile", 3)
         
-
     def buyCity(self, button=None):
-        #3x "ORE"
-        #2x "GRAIN"
-        pass
+        if self.supplyCards["ORE"] < 3 or self.supplyCards["GRAIN"] < 2:
+            self.game.announcementArea.set_content("You do not have enough resources", 3)
+            self.game.announcementArea2.set_content("You do not have enough resources", 3)
+            return
+        if self.buildings["cities"] == 0:
+            self.game.announcementArea.set_content("You do not have any cities left", 3)
+            self.game.announcementArea2.set_content("You do not have any cities left", 3)
+            return
+        
+        buildingPermission = False
+        for place in range(54):
+            if canIBuildThereCity(place, self.game) == True:
+                buildingPermission = True
+                break
+        if buildingPermission == False:
+            self.game.announcementArea.set_content("No place to build", 3)
+            self.game.announcementArea2.set_content("No place to build", 3)
+            return
 
-    def printStatus(self):
-        print("."*80)
-        print("Player number " + str(self.corner + 1) + " (color: " + self.color + ")")
-        self.printSupplyCards()
-        self.printBuildings()
-
-    def printSupplyCards(self):
-        print("BRICKS: " + str(self.supplyCards["BRICK"]))
-        print("GRAIN: " + str(self.supplyCards["GRAIN"]))
-        print("LUMBER: " + str(self.supplyCards["LUMBER"]))
-        print("ORE: " + str(self.supplyCards["ORE"]))
-        print("WOOL: " + str(self.supplyCards["WOOL"]))
-
-    def printBuildings(self):
-        pass
+        self.game.map.buildMode = "city"
+        self.game.announcementArea.set_content("Choose tile (city building)", 3)
+        self.game.announcementArea2.set_content("Choose tile", 3)
 
     def drawPlayerUI(self, scene):
         if self.corner == 0 or self.corner == 2:
             self.boundingRectangle = QtGui.QGraphicsRectItem(0, 650, 600, 550)
-            self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.blue))
+            self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
+            self.boundingRectangle.setPen(QtGui.QPen(QtCore.Qt.transparent))
             scene.addItem(self.boundingRectangle)
             
             self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=920), \
@@ -596,13 +542,18 @@ class Player:
             self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=990), \
                 "Build settlement", self.boundingRectangle, self.buySettlement, scale=1.5))
             self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=1060), \
-                "Build city", self.boundingRectangle, self.setModeToBuildCity, scale=1.5))
+                "Build city", self.boundingRectangle, self.buyCity, scale=1.5))
             self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=1130), \
                 "Buy action card", self.boundingRectangle, self.test, scale=1.5))
+            self.roadIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=810), \
+                "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_blue.png', background_color=QtCore.Qt.transparent)
+            self.settlementIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=870), \
+                "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'village_blue.png', background_color=QtCore.Qt.transparent)
+            self.cityIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=950), \
+                "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'city_blue.png', background_color=QtCore.Qt.transparent)
 
             for key, value in self.supplyCards.items():
                 index = list(self.supplyCards.keys()).index(key)
-                #print("index = " + str(index) + "  key = " + key + "  value = " + str(value))
                 rect = QtGui.QGraphicsRectItem(10+index*80, 660, 70, 100, self.boundingRectangle)
                 if key == "ORE":
                     rect.setBrush(QtGui.QBrush(QtGui.QColor(169,169,169)))
@@ -617,14 +568,23 @@ class Player:
                 self.cardItems.append(rect)
 
                 label = QtGui.QGraphicsTextItem(str(value), self.boundingRectangle, scene)
-                label.setPos(30+index*80, 760)
+                label.setPos(20+index*80, 760)
                 label.setFont(QtGui.QFont('Arial', 30))
                 label.setDefaultTextColor(QtCore.Qt.white)
-                self.labels[key] = label
+                self.supplyLabels[key] = label
+
+            for key, value in self.buildings.iteritems():
+                index = list(self.buildings.keys()).index(key)
+                label = QtGui.QGraphicsTextItem(str(value), self.boundingRectangle, scene)
+                label.setPos(260, 820 + index*80)
+                label.setFont(QtGui.QFont('Arial', 30))
+                label.setDefaultTextColor(QtCore.Qt.white)
+                self.buildingLabels[key] = label
 
         if self.corner == 1 or self.corner == 3:
             self.boundingRectangle = QtGui.QGraphicsRectItem(1400, 650, 600, 550)
-            self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.green))
+            self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
+            self.boundingRectangle.setPen(QtGui.QPen(QtCore.Qt.transparent))
             scene.addItem(self.boundingRectangle)
 
             self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=920), \
@@ -635,10 +595,13 @@ class Player:
                 "Build city", self.boundingRectangle, self.buyCity, scale=1.5))
             self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=1130), \
                 "Buy action card", self.boundingRectangle, self.test, scale=1.5))
+            self.roadIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=810), \
+                "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_green.png', background_color=QtCore.Qt.transparent)
+            self.settlementIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=870), \
+                "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'village_green.png', background_color=QtCore.Qt.transparent)
 
             for key, value in self.supplyCards.iteritems():
                 index = list(self.supplyCards.keys()).index(key)
-                #print("index = " + str(index) + "  key = " + key + "  value = " + str(value))
                 rect = QtGui.QGraphicsRectItem(1600+index*80, 660, 70, 100, self.boundingRectangle)
                 if key == "ORE":
                     rect.setBrush(QtGui.QBrush(QtGui.QColor(169,169,169)))
@@ -653,28 +616,50 @@ class Player:
                 self.cardItems.append(rect)
 
                 label = QtGui.QGraphicsTextItem(str(value), self.boundingRectangle, scene)
-                label.setPos(1620+index*80, 760)
+                label.setPos(1610+index*80, 760)
                 label.setFont(QtGui.QFont('Arial', 30))
                 label.setDefaultTextColor(QtCore.Qt.white)
-                self.labels[key] = label
+                self.supplyLabels[key] = label
+
+            for key, value in self.buildings.iteritems():
+                index = list(self.buildings.keys()).index(key)
+                label = QtGui.QGraphicsTextItem(str(value), self.boundingRectangle, scene)
+                label.setPos(1660, 830+index*80)
+                label.setFont(QtGui.QFont('Arial', 30))
+                label.setDefaultTextColor(QtCore.Qt.white)
+                self.buildingLabels[key] = label
 
         if self.corner == 2:      
-            self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.red))
+            scene.removeItem(self.settlementIcon)
+            scene.removeItem(self.roadIcon)
+            self.roadIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=810), \
+                "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_red.png', background_color=QtCore.Qt.transparent)
+            self.settlementIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=870), \
+                "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'village_red.png', background_color=QtCore.Qt.transparent)
+            self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
             self.boundingRectangle.setTransformOriginPoint(300,975)
             self.boundingRectangle.setRotation(180)
             self.boundingRectangle.setX(1400)
             self.boundingRectangle.setY(-750)
 
         if self.corner == 3:
-            self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.yellow))
+            scene.removeItem(self.settlementIcon)
+            scene.removeItem(self.roadIcon)
+            self.roadIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=810), \
+                "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_yellow.png', background_color=QtCore.Qt.transparent)
+            self.settlementIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=870), \
+                "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'village_yellow.png', background_color=QtCore.Qt.transparent)
+            self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
             self.boundingRectangle.setTransformOriginPoint(1700,975)
             self.boundingRectangle.setRotation(180)
             self.boundingRectangle.setX(-1400)
             self.boundingRectangle.setY(-750)
 
     def updatePlayerUI(self):
-        for key, label in self.labels.items():
+        for key, label in self.supplyLabels.items():
             label.setPlainText(str(self.supplyCards[key]))
+        for key, label in self.buildingLabels.items():
+            label.setPlainText(str(self.buildings[key]))
 
     def disablePlayerUI(self):
         for button in self.items:
@@ -684,26 +669,8 @@ class Player:
         for button in self.items:
             button.set_enabled(True)
 
-    def setModeToBuildRoad(self, button):
-        self.game.map.buildMode = "road"
-        self.game.announcementArea.set_content("Vyberte pole", 3)
-        self.game.announcementArea2.set_content("Vyberte pole", 3)
-
-    def setModeToBuildSettlement(self, button):
-        self.game.map.buildMode = "settlement"
-        self.game.announcementArea.set_content("Vyberte pole", 3)
-        self.game.announcementArea2.set_content("Vyberte pole", 3)    
-
-    def setModeToBuildCity(self, button):
-        self.game.map.buildMode = "city"
-        self.game.announcementArea.set_content("Vyberte pole", 3)
-        self.game.announcementArea2.set_content("Vyberte pole", 3)
-
     def test(self, event):
         self.game.map.tiles[2].changeFocus("crossroad")
-
-    def test2(self, event):
-        self.game.map.tiles[2].changeFocus("road")
 
 #################################################################################################################
 #################################                   GAME CLASS                  #################################
@@ -711,8 +678,6 @@ class Player:
 
 class Game: 
     def __init__(self, scene):
-        rospy.Subscriber('/art/interface/touchtable/touch', Touch, self.touch_cb)
-
         self.scene = scene
         self.colors = ["blue", "green", "red", "yellow"]
         self.supplyCards = self.createStartingSupplyCards() #pole karet zasob
@@ -720,9 +685,7 @@ class Game:
         self.map = self.createDefaultMap() #TODO zmenit
         self.players = self.createPlayers(4) #TODO zmenit
         self.items = []
-        self.turnNumber = 7#-1
-        self.touchState = "mapAction" #TODO zmenit
-        #self.gameState = "initial"
+        self.turnNumber = -1
         self.endOfTurn = False
 
         #TODO na vymazani pak
@@ -730,47 +693,21 @@ class Game:
         self.rect.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
         self.scene.addItem(self.rect)
         
+        self.scene.setBackgroundBrush(QtGui.QBrush(QtGui.QColor(30,144,255)))
+
         self.announcementArea = DescItem(self.scene, 0.4, 0.1, None)
-        self.announcementArea.set_content("TESTOVACI TEXT", 3)
 
         self.announcementArea2 = DescItem(self.scene, 0.6, 0.5, None)
-        self.announcementArea2.set_content("TESTOVACI TEXT", 3)
         self.announcementArea2.setRotation(180)
 
-        self.nextTurnBtn = ButtonItem(self.scene, 0.45, 0.03, "End turn", None, self.nextTurn, scale=2)
-
-        self.announcementArea.set_content("neco jinyho", 3)
-        self.announcementArea2.set_content("neco jinyho", 3)
+        self.nextTurnBtn = ButtonItem(self.scene, 0.45, 0.05, "End turn", None, self.nextTurn, scale=2)
+        self.nextTurnBtn = ButtonItem(self.scene, 0.45, 0.55, " End turn", None, self.nextTurn, scale=2)
 
         self.map.drawMap()
         for key, player in self.players.iteritems():
             player.drawPlayerUI(self.scene)
 
-        # self.button = items.ButtonItem(self.scene, 0.1, 0.2, "BUTTON", None, True, scale=3)
-        # self.label = items.DialogItem(self.scene, 0.5, 0.5, "BLABLABLA", ["YES","NO"], None)
-        # self.descItem = items.DescItem(self.scene, 0.4, 0.4, self.button)
-        # self.descItem.set_content("TESTOVACI TEXT", 3)
-        # self.polygon = items.PolygonItem(self.scene, "NECO", [[0,1],[0,0.5]], [[1,1],[1.5,1.5],[0,0]])
-        # #self.list = ListItem(self.scene, 0, 0.5, 0.1, ["Item1","Item2","Item3"])
-
-    def touch_cb(self, data):
-        if self.state == "mapAction":
-            self.map.touch_cb(data)
-        touch = PointItem(self.scene, data.point.point.x, data.point.point.y, None)
-
-        for player in self.players[self.colors[self.turnNumber%len(self.colors)]]:
-            for item in player.items:
-                if item.collidesWithItem(touch):
-                    item.cursor_click()
-        for item in self.items:
-            if item.collidesWithItem(touch):
-                item.cursor_click()
-
-        # elif self.state == "playerTurn":
-        #     self.players[].touch_cb(data)
-
-        # for item in players[self.colors[self.turnNumber%len(self.colors)]]: #prohledava se pouze hrac na tahu
-        self.scene.removeItem(touch)
+        TouchTableItem(self.scene, '/art/interface/touchtable/touch')
 
     def createPlayers(self, count):
         playerPool = {}
@@ -840,63 +777,56 @@ class Game:
         for i in indices:
             self.map.tiles[i].giveSupplies(self)
 
+    def checkGameEnd(self):
+        for key, player in self.players.items():
+            player.countPoints()
+            if player.points >= 10:
+                self.announcementArea.set_content("THE END", 3)
+                self.announcementArea2.set_content("THE END", 3)
+
     def nextTurn(self, button=None):
         self.map.updateMap()
         for tile in self.map.tiles:
             tile.unsetFocus()
         self.players[self.colors[self.turnNumber%len(self.colors)]].disablePlayerUI()
         self.turnNumber += 1
+        if self.endOfTurn:
+            self.turnNumber -= 1
         if self.turnNumber <= 7:
-            for key, player in self.players.items():
-                player.disablePlayerUI()
-            for tile in self.map.tiles:
+            if self.endOfTurn == False:
+                for key, player in self.players.items():
+                    player.disablePlayerUI()
                 self.map.buildMode = "settlement"
-                tile.setFocus()
-            self.announcementArea.set_content("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player:" + \
-                "\nChoose starting position", 3)
-            self.announcementArea2.set_content("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player:" + \
-                "\nChoose starting position", 3)
+                for tile in self.map.tiles:
+                    tile.setFocus()
+                self.announcementArea.set_content("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player:" + \
+                    "\nChoose starting position", 3)
+                self.announcementArea2.set_content("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player:" + \
+                    "\nChoose starting position", 3)
+                self.endOfTurn = True
+            else:
+                self.map.buildMode = "road"
+                for tile in self.map.tiles:
+                    tile.setFocus()
+                self.endOfTurn = False
 
-        else:
+        else:           
+            #TODO kontrola konce hry
             self.announcementArea.set_content("")
             self.announcementArea2.set_content("")
             self.players[self.colors[self.turnNumber%len(self.colors)]].enablePlayerUI()
             print("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player.")
             #hod kostkama
             #number = input("Cislo na kostkach:")
-            number = randint(1,12)
+            number1 = randint(1,6)
+            number2 = randint(1,6)
+            number = number1 + number2
             #rozdeleni surovin
             self.distributeSupplies(number)
             #obchodovani
             for key, player in self.players.items():
                 player.updatePlayerUI()
-            
-            #self.printPlayers()
             #stavba
-
-    def printGameStatus(self):
-        print("-"*80)
-        print("Turn xxx")
-        print("-"*80)
-        self.printMap()
-        print("-"*80)
-        self.printSupplyCards()
-        print("-"*80)
-        self.printPlayers()
-
-    def printPlayers(self):
-        for key, player in self.players.iteritems():
-            player.printStatus()
-
-    def printSupplyCards(self):
-        print("BRICKS: " + str(self.supplyCards["BRICK"]))
-        print("GRAIN: " + str(self.supplyCards["GRAIN"]))
-        print("LUMBER: " + str(self.supplyCards["LUMBER"]))
-        print("ORE: " + str(self.supplyCards["ORE"]))
-        print("WOOL: " + str(self.supplyCards["WOOL"]))
-
-    def printMap(self):
-        self.map.printMap()
 
 def main():
     game = Game()
