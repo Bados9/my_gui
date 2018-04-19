@@ -126,7 +126,8 @@ areaSupplyDict = {  "MOUNTAINS" : "ORE",
                     "HILLS" : "BRICK",
                     "PASTURE" : "WOOL",
                     "FIELDS" : "GRAIN",
-                    "DESERT" : "NONE"
+                    "DESERT" : "NONE",
+                    "NONE" : "NONE"
 }
 
 def doNothing(button=None):
@@ -197,7 +198,7 @@ def hexCorners(center, size, orientation=None):
 #################################################################################################################
 
 class Tile:
-    def __init__(self, areaType, position, index, scene, myMap):
+    def __init__(self, areaType, position, index, scene, myMap, editor=False):
         self.scene = scene
         self.areaType = areaType
         self.number = 0
@@ -215,6 +216,7 @@ class Tile:
         self.roadIcons = [None] * 6
         self.cityIcons = [None] * 6
         self.settlementIcons = [None] * 6
+        self.editor = editor
 
     def setNumber(self, number):
         self.number = number
@@ -229,16 +231,27 @@ class Tile:
         if (self.position[1] & 1):
             self.coords[0] -= vertSkip*0.5
        
-        self.tileBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]), QTtoART(y=self.coords[1]), "", None,\
-            self.changeFocus, image_path=imagesPath + self.areaType + ".png", scale=8.5,\
-            background_color=QtCore.Qt.transparent)
-        self.tileBtn.h = 180
+        if self.editor == False:
+            self.tileBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]), QTtoART(y=self.coords[1]), "", None,\
+                self.changeFocus, image_path=imagesPath + self.areaType + ".png", scale=8.5,\
+                background_color=QtCore.Qt.transparent)
+            self.tileBtn.h = 180
+        else:
+            self.tileBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]), QTtoART(y=self.coords[1]), "", None,\
+                self.setAreaType, image_path=imagesPath + self.areaType + ".png", scale=8.5,\
+                background_color=QtCore.Qt.transparent)
+            self.tileBtn.h = 180
 
         # if self.number == 1: #TODO kdyz se nerovna nule tam pak bude
         #     self.numberImg = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + str(self.number) + ".png")), scene=self.scene)
         #     self.numberImg.setPos(self.coords[0],self.coords[1])
         #     self.numberImg.setScale(0.5)
     
+    def setAreaType(self, button=None):
+        print("tile areaType changed to " + str(self.map.selectedAreaType))
+        self.areaType = self.map.selectedAreaType
+        self.drawTileBtn(75)
+
     def updateTile(self):
             if self.index in [4,5,8,10,13,14]:
                 self.unsetFocus()
@@ -283,12 +296,12 @@ class Tile:
             self.setFocus()
             
     def setFocus(self):
-        print("davam focus")
+        #print("davam focus")
         if self.map.buildMode == "city" or self.map.buildMode == "settlement": #jeste nevim jak s mestem
             corners = hexCorners([self.coords[0]+55, self.coords[1]+55], 85)
             for index, corner in enumerate(corners):
                 if self.map.places[self.adjacentBuildings[index]] is None:
-                    print("mame tu volno")
+                    #print("mame tu volno")
                     if canIBuildThereSettlement(self.adjacentBuildings[index], self.map.game):
                         self.crossButtons[index] = ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
                             None, self.buildSettlement, scale = 3, background_color=QtCore.Qt.transparent, data=index, \
@@ -344,18 +357,26 @@ class Tile:
 #################################################################################################################
 
 class Map:
-    def __init__(self, scene, game):
+    def __init__(self, scene, game=None, editor=False):
         self.scene = scene
         self.game = game
         self.tiles = [None] * 19
         self.tileNumbers = [None] * 19 #seradi se do zakladu, pak bude mozno posunout
         self.roads = [None] * 72
         self.places = [None]* 54
-        self.touchContext = ["map", None]
         self.buildMode = "settlement"
+        self.selectedAreaType = "NONE"
+        self.editor = editor
+
+    def changeSelectedAreaType(self, button=None):
+        print("selectedArea changed to " + str(button.data))
+        self.selectedAreaType = button.data
 
     def addTile(self, areaType, position, index):
-        self.tiles[index] = Tile(areaType, position, index, self.scene, self)
+        if self.editor == False:
+            self.tiles[index] = Tile(areaType, position, index, self.scene, self)
+        else:
+            self.tiles[index] = Tile(areaType, position, index, self.scene, self, True)
     
     def setTileNumbers(self, tileNumbers):
         self.tileNumbers = tileNumbers
@@ -707,7 +728,7 @@ class Game:
         for key, player in self.players.iteritems():
             player.drawPlayerUI(self.scene)
 
-        TouchTableItem(self.scene, '/art/interface/touchtable/touch')
+        #TouchTableItem(self.scene, '/art/interface/touchtable/touch')
 
     def createPlayers(self, count):
         playerPool = {}
