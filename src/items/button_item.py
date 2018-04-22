@@ -78,6 +78,9 @@ class ButtonItem(Item):
 
         self.update()
 
+    def set_cb(self, clicked):
+        self.clicked = clicked
+
     def set_background_color(self, color=QtCore.Qt.green):
 
         self.background_color = color

@@ -61,8 +61,8 @@ class MapEditor:
         YCoord = 50
         XOffset = 350
         self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord), QTtoART(y=YCoord), "New map", None, self.newMap, scale = 3))
-        self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+XOffset), QTtoART(y=YCoord), "Load map", None, self.loadMap, scale = 3))
-        self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+2*XOffset), QTtoART(y=YCoord), "Save map", None, self.saveMap, scale = 3))
+        self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+XOffset), QTtoART(y=YCoord), "Load map", None, self.drawLoadSlots, scale = 3))
+        self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+2*XOffset), QTtoART(y=YCoord), "Save map", None, self.drawSaveSlots, scale = 3))
         self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+3*XOffset), QTtoART(y=YCoord), "Exit editor", None, self.exitEditor, scale = 3))
 
     def newMap(self, button):
@@ -71,26 +71,62 @@ class MapEditor:
         self.map.drawMap()
         self.drawUI()
 
+    def drawLoadSlots(self, button):
+        self.slotButtons = []
+        for btn in self.menuButtons:
+            self.scene.removeItem(btn)
+        XCoord = 300
+        YCoord = 50
+        XOffset = 250
+        for i in range(5):
+            self.slotButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+i*XOffset), QTtoART(y=YCoord), "", None, self.loadMap, scale = 2, data=i))
+            self.slotButtons[i].set_caption("Slot " + str(i), QTtoART(x=200))
+        self.slotButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+5*XOffset), QTtoART(y=YCoord), "Back", None, self.displayMenu, scale = 2))
+
+
     def loadMap(self, button):
-        resPath = rospack.get_path('my_gui') + '/src/'
-        file = open(resPath + "testfile.map",'r') 
+        resPath = rospack.get_path('my_gui') + '/src/maps/'
+        
+        file = open(resPath + "mapfile" + str(button.data) + ".map",'r') 
+
         temp = file.read().splitlines()
         for tile in self.map.tiles:
             tile.areaType = temp[tile.index]
             print("areaType = " + tile.areaType)
         file.close()
+        
         self.scene.clear()
         self.map.drawMap()
         self.drawUI()
 
+    def displayMenu(self, button=None):
+        for btn in self.slotButtons:
+            self.scene.removeItem(btn)
+        for btn in self.menuButtons:
+            self.scene.addItem(btn)
+
+    def drawSaveSlots(self, button):
+        self.slotButtons = []
+        for btn in self.menuButtons:
+            self.scene.removeItem(btn)
+        XCoord = 300
+        YCoord = 50
+        XOffset = 250
+        for i in range(5):
+            self.slotButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+i*XOffset), QTtoART(y=YCoord), "", None, self.saveMap, scale = 2, data=i))
+            self.slotButtons[i].set_caption("Slot " + str(i), QTtoART(x=200))
+        self.slotButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+5*XOffset), QTtoART(y=YCoord), "Back", None, self.displayMenu, scale = 2))
+
     def saveMap(self, button):
-        resPath = rospack.get_path('my_gui') + '/src/'
-        file = open(resPath + "testfile.map",'w+') 
+        resPath = rospack.get_path('my_gui') + '/src/maps/'
+        
+        file = open(resPath + "mapfile" + str(button.data) + ".map",'w+') 
  
         for tile in self.map.tiles:
             file.write(tile.areaType + "\n")
          
         file.close()
+        self.displayMenu()
 
     def exitEditor(self, button):
         self.scene.clear()

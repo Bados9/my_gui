@@ -133,6 +133,18 @@ areaSupplyDict = {  "MOUNTAINS" : "ORE",
 def doNothing(button=None):
     pass
 
+def whereIsIt(point):
+    if point.x() > 1000:
+        if point.y() > 600:
+            return "green"
+        else:
+            return "red"
+    else:
+        if point.y() > 600:
+            return "blue"
+        else:
+            return "yellow"
+
 def canIBuildThereSettlement(place, game):
     if game.map.places[place] is not None:
         return False
@@ -296,12 +308,10 @@ class Tile:
             self.setFocus()
             
     def setFocus(self):
-        #print("davam focus")
         if self.map.buildMode == "city" or self.map.buildMode == "settlement": #jeste nevim jak s mestem
             corners = hexCorners([self.coords[0]+55, self.coords[1]+55], 85)
             for index, corner in enumerate(corners):
                 if self.map.places[self.adjacentBuildings[index]] is None:
-                    #print("mame tu volno")
                     if canIBuildThereSettlement(self.adjacentBuildings[index], self.map.game):
                         self.crossButtons[index] = ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
                             None, self.buildSettlement, scale = 3, background_color=QtCore.Qt.transparent, data=index, \
@@ -551,13 +561,97 @@ class Player:
         self.game.announcementArea.set_content("Choose tile (city building)", 3)
         self.game.announcementArea2.set_content("Choose tile", 3)
 
+    def setResourceForTrade(self, button):
+        print("klik na " + str(button.data))
+        if self.trade.resourceOne == "NONE":
+            self.trade.resourceOne = button.data
+            self.trade.resOneCount = 1
+            self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
+                + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
+                + "\n CONFIRM FIRST RESOURCE?")
+        else:
+            self.trade.resourceTwo = button.data
+            self.trade.resTwoCount = 1
+            self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
+                + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
+                + "\n CONFIRM SECOND RESOURCE?")
+
+    def tradeOffer(self, button=None):
+        self.trade = Trade()
+        self.dialog = DialogItem(self.game.scene, QTtoART(x=420), QTtoART(y=660), "SELECT FIRST RESOURCE BY TAPPING ON CARD", ["INCREASE", "DECREASE", "CONFIRM", "CANCEL"], self.tradeDialogAnswer)
+        self.cardButtons = []
+        for key, item in self.supplyCards.items():
+            index = list(self.supplyCards.keys()).index(key)
+            self.cardButtons.append(ButtonItem(self.game.scene, QTtoART(x=10+index*80), QTtoART(y=660), "", self.boundingRectangle, \
+                self.setResourceForTrade, background_color=QtCore.Qt.transparent, data=key))
+            self.cardButtons[index].w = 70
+            self.cardButtons[index].h = 110
+
+    def tradeSupplies(self, trade, player2):
+        for i in range(trade.resOneCount):
+            self.removeSupplyCard(trade.resourceOne)
+            self.game.players[player2].addSupplyCard(trade.resourceOne)
+
+        for i in range(trade.resTwoCount):
+            self.game.players[player2].removeSupplyCard(trade.resourceTwo)
+            self.addSupplyCard(trade.resourceTwo)
+
+        self.updatePlayerUI()
+        self.game.players[player2].updatePlayerUI()
+
+    def tradeDialogAnswer(self, number):
+        if number == 0:
+            #print("kliknulo se na INCREASE")
+            if self.trade.resourceTwo == "NONE":
+                self.trade.resOneCount += 1
+                self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
+                + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
+                + "\n CONFIRM FIRST RESOURCE?")
+            else:
+                self.trade.resTwoCount += 1
+                self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
+                + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
+                + "\n CONFIRM SECOND RESOURCE?")
+        elif number == 1:
+            #print("kliknulo se na DECREASE")
+            if self.trade.resourceTwo == "NONE":
+                self.trade.resOneCount -= 1
+                self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
+                + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
+                + "\n CONFIRM FIRST RESOURCE?")
+            else:
+                self.trade.resTwoCount -= 1
+                self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
+                + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
+                + "\n CONFIRM SECOND RESOURCE?")
+        elif number == 2:
+            #print("kliknulo se na CONFIRM")
+            if self.trade.resourceTwo == "NONE":
+                self.dialog.set_caption("SELECT SECOND RESOURCE")
+            else:
+                if whereIsIt(self.dialog.pos()) == self.color:
+                    self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
+                    + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
+                    + "\nWAITING FOR AGREEMENT FROM SECOND PLAYER")
+                else:
+                    self.tradeSupplies(self.trade, whereIsIt(self.dialog.pos()))
+                    self.game.scene.removeItem(self.dialog)
+                    self.dialog = None    
+                    self.trade = None       
+        else:
+            #print("kliknulo se na CANCEL")
+            self.game.scene.removeItem(self.dialog)
+            self.dialog = None
+
     def drawPlayerUI(self, scene):
         if self.corner == 0 or self.corner == 2:
             self.boundingRectangle = QtGui.QGraphicsRectItem(0, 650, 600, 550)
             self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
             self.boundingRectangle.setPen(QtGui.QPen(QtCore.Qt.transparent))
             scene.addItem(self.boundingRectangle)
-            
+
+            self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=850), \
+                "Trade", self.boundingRectangle, self.tradeOffer, scale=1.5))
             self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=920), \
                 "Build road", self.boundingRectangle, self.buyRoad, scale=1.5))
             self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=990), \
@@ -608,6 +702,8 @@ class Player:
             self.boundingRectangle.setPen(QtGui.QPen(QtCore.Qt.transparent))
             scene.addItem(self.boundingRectangle)
 
+            self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=850), \
+                "Trade", self.boundingRectangle, self.tradeOffer, scale=1.5))
             self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=920), \
                 "Build road", self.boundingRectangle, self.buyRoad, scale=1.5))
             self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=990), \
@@ -620,6 +716,9 @@ class Player:
                 "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_green.png', background_color=QtCore.Qt.transparent)
             self.settlementIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=870), \
                 "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'village_green.png', background_color=QtCore.Qt.transparent)
+            self.cityIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=950), \
+                "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'city_green.png', background_color=QtCore.Qt.transparent)
+
 
             for key, value in self.supplyCards.iteritems():
                 index = list(self.supplyCards.keys()).index(key)
@@ -657,6 +756,9 @@ class Player:
                 "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_red.png', background_color=QtCore.Qt.transparent)
             self.settlementIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=870), \
                 "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'village_red.png', background_color=QtCore.Qt.transparent)
+            self.cityIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=950), \
+                "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'city_red.png', background_color=QtCore.Qt.transparent)
+
             self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
             self.boundingRectangle.setTransformOriginPoint(300,975)
             self.boundingRectangle.setRotation(180)
@@ -670,6 +772,9 @@ class Player:
                 "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_yellow.png', background_color=QtCore.Qt.transparent)
             self.settlementIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=870), \
                 "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'village_yellow.png', background_color=QtCore.Qt.transparent)
+            self.cityIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=950), \
+                "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'city_yellow.png', background_color=QtCore.Qt.transparent)
+
             self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
             self.boundingRectangle.setTransformOriginPoint(1700,975)
             self.boundingRectangle.setRotation(180)
@@ -706,7 +811,7 @@ class Game:
         self.map = self.createDefaultMap() #TODO zmenit
         self.players = self.createPlayers(4) #TODO zmenit
         self.items = []
-        self.turnNumber = -1
+        self.turnNumber = 7#-1
         self.endOfTurn = False
 
         #TODO na vymazani pak
@@ -714,7 +819,8 @@ class Game:
         self.rect.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
         self.scene.addItem(self.rect)
         
-        self.scene.setBackgroundBrush(QtGui.QBrush(QtGui.QColor(30,144,255)))
+        #self.scene.setBackgroundBrush(QtGui.QBrush(QtGui.QColor(30,144,255)))
+        self.scene.setBackgroundBrush(QtCore.Qt.black)
 
         self.announcementArea = DescItem(self.scene, 0.4, 0.1, None)
 

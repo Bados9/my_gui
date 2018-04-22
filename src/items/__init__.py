@@ -3,3 +3,4 @@ from button_item import ButtonItem
 from desc_item import DescItem
 from item import Item
 from touch_table_item import TouchTableItem
+from dialog_item import DialogItem

@@ -14,6 +14,13 @@ class Building:
 		self.color = color
 		self.type = buildingType #city nebo settlement nebo road?
 
+class Trade(object):
+	def __init__(self):
+		self.resourceOne = "NONE"
+		self.resourceTwo = "NONE"
+		self.resOneCount = 0
+		self.resTwoCount = 0
+
 def main():
 	pass
 	
