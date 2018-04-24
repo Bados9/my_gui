@@ -7,12 +7,12 @@ import time
 import rospy
 import rospkg
 import math
-import gamePieces
 from random import randint
 from PyQt4 import QtGui, QtCore, QtNetwork
 from art_projected_gui.helpers import ProjectorHelper
 from items import *
 from gamePieces import *
+from recognizer import Recognizer
 from art_msgs.msg import Touch
 
 
@@ -254,11 +254,24 @@ class Tile:
                 background_color=QtCore.Qt.transparent)
             self.tileBtn.h = 180
 
-        # if self.number == 1: #TODO kdyz se nerovna nule tam pak bude
-        #     self.numberImg = QtGui.QGraphicsPixmapItem(QtGui.QPixmap(QtGui.QImage(imagesPath + str(self.number) + ".png")), scene=self.scene)
-        #     self.numberImg.setPos(self.coords[0],self.coords[1])
-        #     self.numberImg.setScale(0.5)
-    
+        if self.number == 1: #TODO kdyz se nerovna nule tam pak bude
+            self.numberImg = ButtonItem(self.scene, QTtoART(x=self.coords[0]+55), QTtoART(y=self.coords[1]+60), "", None,\
+                self.setAreaType, image_path=imagesPath + str(self.number) + ".png", scale=3,\
+                background_color=QtCore.Qt.green)
+            self.numberImg.h=55
+            self.numberImg.set_enabled(False)
+        else:
+            self.numberImg = None
+        self.hideTileNumber()
+
+    def showTileNumber(self):
+        if self.numberImg != None:
+            self.scene.addItem(self.numberImg)
+
+    def hideTileNumber(self):
+        if self.numberImg != None:
+            self.scene.removeItem(self.numberImg)
+
     def setAreaType(self, button=None):
         print("tile areaType changed to " + str(self.map.selectedAreaType))
         self.areaType = self.map.selectedAreaType
@@ -377,6 +390,21 @@ class Map:
         self.buildMode = "settlement"
         self.selectedAreaType = "NONE"
         self.editor = editor
+        self.thief = 9
+
+    def showTileNumbers(self, button=None):
+        for tile in self.tiles:
+            tile.showTileNumber()
+
+        self.scene.removeItem(self.game.showTileNumbers)
+        self.scene.addItem(self.game.hideTileNumbers)
+
+    def hideTileNumbers(self, button=None):
+        for tile in self.tiles:
+            tile.hideTileNumber()
+
+        self.scene.addItem(self.game.showTileNumbers)
+        self.scene.removeItem(self.game.hideTileNumbers)
 
     def changeSelectedAreaType(self, button=None):
         print("selectedArea changed to " + str(button.data))
@@ -659,7 +687,7 @@ class Player:
             self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=1060), \
                 "Build city", self.boundingRectangle, self.buyCity, scale=1.5))
             self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=1130), \
-                "Buy action card", self.boundingRectangle, self.test, scale=1.5))
+                "Buy action card", self.boundingRectangle, doNothing, scale=1.5))
             self.roadIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=810), \
                 "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_blue.png', background_color=QtCore.Qt.transparent)
             self.settlementIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=870), \
@@ -711,7 +739,7 @@ class Player:
             self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=1060), \
                 "Build city", self.boundingRectangle, self.buyCity, scale=1.5))
             self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=1130), \
-                "Buy action card", self.boundingRectangle, self.test, scale=1.5))
+                "Buy action card", self.boundingRectangle, doNothing, scale=1.5))
             self.roadIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=810), \
                 "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_green.png', background_color=QtCore.Qt.transparent)
             self.settlementIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=870), \
@@ -795,9 +823,6 @@ class Player:
         for button in self.items:
             button.set_enabled(True)
 
-    def test(self, event):
-        self.game.map.tiles[2].changeFocus("crossroad")
-
 #################################################################################################################
 #################################                   GAME CLASS                  #################################
 #################################################################################################################
@@ -813,6 +838,7 @@ class Game:
         self.items = []
         self.turnNumber = 7#-1
         self.endOfTurn = False
+        self.recognizer = Recognizer()
 
         #TODO na vymazani pak
         self.rect = QtGui.QGraphicsRectItem(0,0,2000, 1200)
@@ -827,8 +853,12 @@ class Game:
         self.announcementArea2 = DescItem(self.scene, 0.6, 0.5, None)
         self.announcementArea2.setRotation(180)
 
-        self.nextTurnBtn = ButtonItem(self.scene, 0.45, 0.05, "End turn", None, self.nextTurn, scale=2)
-        self.nextTurnBtn = ButtonItem(self.scene, 0.45, 0.55, " End turn", None, self.nextTurn, scale=2)
+        self.nextTurnBtn = ButtonItem(self.scene, 0.50, 0.05, "End turn", None, self.nextTurn, scale=2)
+        self.nextTurnBtn = ButtonItem(self.scene, 0.50, 0.55, " End turn", None, self.nextTurn, scale=2)
+
+        self.showTileNumbers = ButtonItem(self.scene, 0.3, 0.05, "Show numbers", None, self.map.showTileNumbers, scale=2)
+        self.hideTileNumbers = ButtonItem(self.scene, 0.3, 0.05, "Hide numbers", None, self.map.hideTileNumbers, scale=2)
+        self.scene.removeItem(self.hideTileNumbers)
 
         self.map.drawMap()
         for key, player in self.players.iteritems():
@@ -902,7 +932,8 @@ class Game:
         #TODO cisla tileNumbers musi odpovidat cislum tiles!!!
         indices = [i for i, x in enumerate(self.map.tileNumbers) if x == number]
         for i in indices:
-            self.map.tiles[i].giveSupplies(self)
+            if self.map.tiles[i].index != self.map.thief:
+                self.map.tiles[i].giveSupplies(self)
 
     def checkGameEnd(self):
         for key, player in self.players.items():
@@ -944,7 +975,7 @@ class Game:
             self.players[self.colors[self.turnNumber%len(self.colors)]].enablePlayerUI()
             print("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player.")
             #hod kostkama
-            #number = input("Cislo na kostkach:")
+            #number = self.recognizer.getDicesValue()
             number1 = randint(1,6)
             number2 = randint(1,6)
             number = number1 + number2
