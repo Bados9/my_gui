@@ -1,5 +1,6 @@
 import rospy
 import rospkg
+from collections import Counter
 from PyQt4 import QtGui, QtCore, QtNetwork
 from game import Map
 from items import *
@@ -25,7 +26,7 @@ class MapEditor:
         self.drawUI()
 
     def createEmptyMap(self):
-        emptyMap = Map(self.scene, editor=True)
+        emptyMap = Map(self.scene, self, editor=True)
         emptyMap.addTile("NONE",[0,0],0)
         emptyMap.addTile("NONE",[1,0],1)
         emptyMap.addTile("NONE",[2,0],2)
@@ -49,12 +50,13 @@ class MapEditor:
         return emptyMap
 
     def drawUI(self):
-        self.areaTypeButtons = []
+        self.areaTypeButtons = {}
         for index, tileType in enumerate(["MOUNTAINS", "PASTURE", "HILLS", "DESERT", "FOREST", "FIELDS"]):
             XCoord = 250 if index < 3 else 1600
-            self.areaTypeButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord), QTtoART(y=200+index%3*250), "", None, \
+            self.areaTypeButtons[tileType] = ButtonItem(self.scene, QTtoART(x=XCoord), QTtoART(y=200+index%3*250), "", None, \
             self.map.changeSelectedAreaType, scale = 8, background_color=QtCore.Qt.transparent, \
-            image_path=imagesPath + tileType + ".png", data=tileType))
+            image_path=imagesPath + tileType + ".png", data=tileType)
+            self.areaTypeButtons[tileType].h = 180
 
         self.menuButtons = []
         XCoord = 350
@@ -64,6 +66,21 @@ class MapEditor:
         self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+XOffset), QTtoART(y=YCoord), "Load map", None, self.drawLoadSlots, scale = 3))
         self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+2*XOffset), QTtoART(y=YCoord), "Save map", None, self.drawSaveSlots, scale = 3))
         self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+3*XOffset), QTtoART(y=YCoord), "Exit editor", None, self.exitEditor, scale = 3))
+
+    def checkCounts(self):
+        typeList = [x.areaType for x in self.map.tiles]
+        typeCounts = Counter(typeList)
+        for areaType in ["PASTURE","FOREST","FIELDS"]:
+            if typeCounts[areaType] > 3:
+                self.scene.removeItem(self.areaTypeButtons[areaType]) #TODO nejak lip udelat
+
+        for areaType in ["HILLS", "MOUNTAINS"]:
+            if typeCounts[areaType] > 2:
+                self.scene.removeItem(self.areaTypeButtons[areaType]) #TODO nejak lip udelat
+
+        for areaType in ["DESERT"]:
+            if typeCounts[areaType] > 0:
+                self.scene.removeItem(self.areaTypeButtons[areaType]) #TODO nejak lip udelat
 
     def newMap(self, button):
         self.map = self.createEmptyMap()

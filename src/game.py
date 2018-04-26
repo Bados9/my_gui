@@ -210,7 +210,7 @@ def hexCorners(center, size, orientation=None):
 #################################################################################################################
 
 class Tile:
-    def __init__(self, areaType, position, index, scene, myMap, editor=False):
+    def __init__(self, areaType, position, index, scene, myMap, editor=False, editorInstance=None):
         self.scene = scene
         self.areaType = areaType
         self.number = 0
@@ -229,6 +229,8 @@ class Tile:
         self.cityIcons = [None] * 6
         self.settlementIcons = [None] * 6
         self.editor = editor
+        self.thiefIcon = None
+        self.editorInstance = editorInstance
 
     def setNumber(self, number):
         self.number = number
@@ -254,27 +256,31 @@ class Tile:
                 background_color=QtCore.Qt.transparent)
             self.tileBtn.h = 180
 
-        if self.number == 1: #TODO kdyz se nerovna nule tam pak bude
-            self.numberImg = ButtonItem(self.scene, QTtoART(x=self.coords[0]+55), QTtoART(y=self.coords[1]+60), "", None,\
-                self.setAreaType, image_path=imagesPath + str(self.number) + ".png", scale=3,\
-                background_color=QtCore.Qt.green)
-            self.numberImg.h=55
-            self.numberImg.set_enabled(False)
-        else:
-            self.numberImg = None
-        self.hideTileNumber()
+        if self.editor == False:
+            if self.number != 0:
+                XOffset = 40 
+                if self.number > 9:
+                    XOffset = 30
+                self.numberImg = ButtonItem(self.scene, QTtoART(x=self.coords[0]+XOffset), QTtoART(y=self.coords[1]+30), \
+                    str(self.number), None, self.changeFocus, scale=3,\
+                    background_color=QtCore.Qt.transparent)
+            else:
+                self.numberImg = None
+                self.drawThief()
 
-    def showTileNumber(self):
-        if self.numberImg != None:
-            self.scene.addItem(self.numberImg)
+    def deleteThief(self, button=None):
+        self.scene.removeItem(self.thiefIcon)
+        self.thiefIcon = None
 
-    def hideTileNumber(self):
-        if self.numberImg != None:
-            self.scene.removeItem(self.numberImg)
+    def drawThief(self, button=None):
+        self.thiefIcon = ButtonItem(self.scene, QTtoART(x=self.coords[0]+40), QTtoART(y=self.coords[1]+30), \
+                str(self.number), None, self.changeFocus, scale=3, image_path=imagesPath + "butt_crossroad_black.png",\
+                background_color=QtCore.Qt.transparent)
 
     def setAreaType(self, button=None):
         print("tile areaType changed to " + str(self.map.selectedAreaType))
         self.areaType = self.map.selectedAreaType
+        self.editorInstance.checkCounts()
         self.drawTileBtn(75)
 
     def updateTile(self):
@@ -380,7 +386,7 @@ class Tile:
 #################################################################################################################
 
 class Map:
-    def __init__(self, scene, game=None, editor=False):
+    def __init__(self, scene, editorInstance=None, game=None, editor=False):
         self.scene = scene
         self.game = game
         self.tiles = [None] * 19
@@ -391,20 +397,7 @@ class Map:
         self.selectedAreaType = "NONE"
         self.editor = editor
         self.thief = 9
-
-    def showTileNumbers(self, button=None):
-        for tile in self.tiles:
-            tile.showTileNumber()
-
-        self.scene.removeItem(self.game.showTileNumbers)
-        self.scene.addItem(self.game.hideTileNumbers)
-
-    def hideTileNumbers(self, button=None):
-        for tile in self.tiles:
-            tile.hideTileNumber()
-
-        self.scene.addItem(self.game.showTileNumbers)
-        self.scene.removeItem(self.game.hideTileNumbers)
+        self.editorInstance = editorInstance
 
     def changeSelectedAreaType(self, button=None):
         print("selectedArea changed to " + str(button.data))
@@ -414,7 +407,7 @@ class Map:
         if self.editor == False:
             self.tiles[index] = Tile(areaType, position, index, self.scene, self)
         else:
-            self.tiles[index] = Tile(areaType, position, index, self.scene, self, True)
+            self.tiles[index] = Tile(areaType, position, index, self.scene, self, True, self.editorInstance)
     
     def setTileNumbers(self, tileNumbers):
         self.tileNumbers = tileNumbers
@@ -606,14 +599,33 @@ class Player:
 
     def tradeOffer(self, button=None):
         self.trade = Trade()
-        self.dialog = DialogItem(self.game.scene, QTtoART(x=420), QTtoART(y=660), "SELECT FIRST RESOURCE BY TAPPING ON CARD", ["INCREASE", "DECREASE", "CONFIRM", "CANCEL"], self.tradeDialogAnswer)
-        self.cardButtons = []
-        for key, item in self.supplyCards.items():
-            index = list(self.supplyCards.keys()).index(key)
-            self.cardButtons.append(ButtonItem(self.game.scene, QTtoART(x=10+index*80), QTtoART(y=660), "", self.boundingRectangle, \
-                self.setResourceForTrade, background_color=QtCore.Qt.transparent, data=key))
-            self.cardButtons[index].w = 70
-            self.cardButtons[index].h = 110
+        coordsDict = {  0:[420,970,50,660,80], #[dialogX, dialogY, cardBtnX, cardBtnY, cardBtnXOffset]
+                        1:[1070,970,1550,660,80],
+                        2:[1580,230,1950,550,80],
+                        3:[930,230,450,550,80]} 
+    
+        self.dialog = DialogItem(self.game.scene, QTtoART(x=coordsDict[self.corner][0]), QTtoART(y=coordsDict[self.corner][1]), "SELECT FIRST RESOURCE BY TAPPING ON CARD", ["INCREASE", "DECREASE", "CONFIRM", "CANCEL"], self.tradeDialogAnswer)
+        if self.corner <= 1:           
+            self.cardButtons = []
+            for key, item in self.supplyCards.items():
+                index = list(self.supplyCards.keys()).index(key)
+                self.cardButtons.append(ButtonItem(self.game.scene, \
+                    QTtoART(x=coordsDict[self.corner][2]+index*coordsDict[self.corner][4]), \
+                    QTtoART(y=coordsDict[self.corner][3]), "", self.boundingRectangle, \
+                    self.setResourceForTrade, background_color=QtCore.Qt.green, data=key))
+                self.cardButtons[index].w = 70
+                self.cardButtons[index].h = 110
+        else:
+            self.dialog.setRotation(180)
+            self.cardButtons = [None]*5
+            for key, item in reversed(self.supplyCards.items()):
+                index = list(self.supplyCards.keys()).index(key)
+                self.cardButtons[index] = ButtonItem(self.game.scene, \
+                    QTtoART(x=coordsDict[self.corner][2]-index*coordsDict[self.corner][4]), \
+                    QTtoART(y=coordsDict[self.corner][3]), "", self.boundingRectangle, \
+                    self.setResourceForTrade, background_color=QtCore.Qt.green, data=key)
+                self.cardButtons[index].w = 70
+                self.cardButtons[index].h = 110
 
     def tradeSupplies(self, trade, player2):
         for i in range(trade.resOneCount):
@@ -624,6 +636,10 @@ class Player:
             self.game.players[player2].removeSupplyCard(trade.resourceTwo)
             self.addSupplyCard(trade.resourceTwo)
 
+        for cardBtn in self.cardButtons:
+            self.game.scene.removeItem(cardBtn)
+
+        self.cardButtons = [None] * 5
         self.updatePlayerUI()
         self.game.players[player2].updatePlayerUI()
 
@@ -669,6 +685,9 @@ class Player:
         else:
             #print("kliknulo se na CANCEL")
             self.game.scene.removeItem(self.dialog)
+            for cardBtn in self.cardButtons:
+                self.game.scene.removeItem(cardBtn)
+            self.cardButtons = [None] * 5
             self.dialog = None
 
     def drawPlayerUI(self, scene):
@@ -677,17 +696,19 @@ class Player:
             self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
             self.boundingRectangle.setPen(QtGui.QPen(QtCore.Qt.transparent))
             scene.addItem(self.boundingRectangle)
-
-            self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=850), \
-                "Trade", self.boundingRectangle, self.tradeOffer, scale=1.5))
-            self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=920), \
-                "Build road", self.boundingRectangle, self.buyRoad, scale=1.5))
-            self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=990), \
-                "Build settlement", self.boundingRectangle, self.buySettlement, scale=1.5))
-            self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=1060), \
-                "Build city", self.boundingRectangle, self.buyCity, scale=1.5))
-            self.items.append(ButtonItem(scene, QTtoART(x=0), QTtoART(y=1130), \
-                "Buy action card", self.boundingRectangle, doNothing, scale=1.5))
+            XCoord = 50
+            YCoord = 820
+            YOffset = 50
+            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord), \
+                "Trade", self.boundingRectangle, self.tradeOffer, scale=1.2))
+            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+YOffset), \
+                "Build road", self.boundingRectangle, self.buyRoad, scale=1.2))
+            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+2*YOffset), \
+                "Build settlement", self.boundingRectangle, self.buySettlement, scale=1.2))
+            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+3*YOffset), \
+                "Build city", self.boundingRectangle, self.buyCity, scale=1.2))
+            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+4*YOffset), \
+                "Buy action card", self.boundingRectangle, doNothing, scale=1.2))
             self.roadIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=810), \
                 "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_blue.png', background_color=QtCore.Qt.transparent)
             self.settlementIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=870), \
@@ -695,9 +716,12 @@ class Player:
             self.cityIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=950), \
                 "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'city_blue.png', background_color=QtCore.Qt.transparent)
 
+            for item in self.items:
+                item.w = 180
+
             for key, value in self.supplyCards.items():
                 index = list(self.supplyCards.keys()).index(key)
-                rect = QtGui.QGraphicsRectItem(10+index*80, 660, 70, 100, self.boundingRectangle)
+                rect = QtGui.QGraphicsRectItem(50+index*80, 660, 70, 100, self.boundingRectangle)
                 if key == "ORE":
                     rect.setBrush(QtGui.QBrush(QtGui.QColor(169,169,169)))
                 elif key == "WOOL":
@@ -711,7 +735,7 @@ class Player:
                 self.cardItems.append(rect)
 
                 label = QtGui.QGraphicsTextItem(str(value), self.boundingRectangle, scene)
-                label.setPos(20+index*80, 760)
+                label.setPos(60+index*80, 760)
                 label.setFont(QtGui.QFont('Arial', 30))
                 label.setDefaultTextColor(QtCore.Qt.white)
                 self.supplyLabels[key] = label
@@ -729,17 +753,19 @@ class Player:
             self.boundingRectangle.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
             self.boundingRectangle.setPen(QtGui.QPen(QtCore.Qt.transparent))
             scene.addItem(self.boundingRectangle)
-
-            self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=850), \
-                "Trade", self.boundingRectangle, self.tradeOffer, scale=1.5))
-            self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=920), \
-                "Build road", self.boundingRectangle, self.buyRoad, scale=1.5))
-            self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=990), \
-                "Build settlement", self.boundingRectangle, self.buySettlement, scale=1.5))
-            self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=1060), \
-                "Build city", self.boundingRectangle, self.buyCity, scale=1.5))
-            self.items.append(ButtonItem(scene, QTtoART(x=1800), QTtoART(y=1130), \
-                "Buy action card", self.boundingRectangle, doNothing, scale=1.5))
+            XCoord = 1750
+            YCoord = 820
+            YOffset = 50
+            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord), \
+                "Trade", self.boundingRectangle, self.tradeOffer, scale=1.2))
+            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+YOffset), \
+                "Build road", self.boundingRectangle, self.buyRoad, scale=1.2))
+            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+2*YOffset), \
+                "Build settlement", self.boundingRectangle, self.buySettlement, scale=1.2))
+            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+3*YOffset), \
+                "Build city", self.boundingRectangle, self.buyCity, scale=1.2))
+            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+4*YOffset), \
+                "Buy action card", self.boundingRectangle, doNothing, scale=1.2))
             self.roadIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=810), \
                 "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_green.png', background_color=QtCore.Qt.transparent)
             self.settlementIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=870), \
@@ -747,10 +773,12 @@ class Player:
             self.cityIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=950), \
                 "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'city_green.png', background_color=QtCore.Qt.transparent)
 
+            for item in self.items:
+                item.w = 180
 
             for key, value in self.supplyCards.iteritems():
                 index = list(self.supplyCards.keys()).index(key)
-                rect = QtGui.QGraphicsRectItem(1600+index*80, 660, 70, 100, self.boundingRectangle)
+                rect = QtGui.QGraphicsRectItem(1550+index*80, 660, 70, 100, self.boundingRectangle)
                 if key == "ORE":
                     rect.setBrush(QtGui.QBrush(QtGui.QColor(169,169,169)))
                 elif key == "WOOL":
@@ -764,7 +792,7 @@ class Player:
                 self.cardItems.append(rect)
 
                 label = QtGui.QGraphicsTextItem(str(value), self.boundingRectangle, scene)
-                label.setPos(1610+index*80, 760)
+                label.setPos(1560+index*80, 760)
                 label.setFont(QtGui.QFont('Arial', 30))
                 label.setDefaultTextColor(QtCore.Qt.white)
                 self.supplyLabels[key] = label
@@ -842,6 +870,7 @@ class Game:
 
         #TODO na vymazani pak
         self.rect = QtGui.QGraphicsRectItem(0,0,2000, 1200)
+        self.rect.setPen(QtGui.QPen(QtCore.Qt.white))
         self.rect.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
         self.scene.addItem(self.rect)
         
@@ -853,12 +882,9 @@ class Game:
         self.announcementArea2 = DescItem(self.scene, 0.6, 0.5, None)
         self.announcementArea2.setRotation(180)
 
-        self.nextTurnBtn = ButtonItem(self.scene, 0.50, 0.05, "End turn", None, self.nextTurn, scale=2)
-        self.nextTurnBtn = ButtonItem(self.scene, 0.50, 0.55, " End turn", None, self.nextTurn, scale=2)
-
-        self.showTileNumbers = ButtonItem(self.scene, 0.3, 0.05, "Show numbers", None, self.map.showTileNumbers, scale=2)
-        self.hideTileNumbers = ButtonItem(self.scene, 0.3, 0.05, "Hide numbers", None, self.map.hideTileNumbers, scale=2)
-        self.scene.removeItem(self.hideTileNumbers)
+        self.nextTurnBtn = ButtonItem(self.scene, QTtoART(x=920), QTtoART(y=1050), "End turn", None, self.endTurn, scale=2)
+        self.nextTurnBtn2 = ButtonItem(self.scene, QTtoART(x=1070), QTtoART(y=150), " End turn", None, self.endTurn, scale=2)
+        self.nextTurnBtn2.setRotation(180)
 
         self.map.drawMap()
         for key, player in self.players.iteritems():
@@ -873,7 +899,7 @@ class Game:
         return playerPool
 
     def createDefaultMap(self):
-        defaultMap = Map(self.scene, self)
+        defaultMap = Map(self.scene, game = self)
         defaultMap.addTile("MOUNTAINS",[0,0],0)
         defaultMap.addTile("PASTURE",[1,0],1)
         defaultMap.addTile("FOREST",[2,0],2)
@@ -942,7 +968,19 @@ class Game:
                 self.announcementArea.set_content("THE END", 3)
                 self.announcementArea2.set_content("THE END", 3)
 
+    def endTurn(self, button=None):
+        self.nextTurnBtn.set_caption("Next turn")
+        self.nextTurnBtn2.set_caption("Next turn")
+        self.nextTurnBtn.set_cb(self.nextTurn)
+        self.nextTurnBtn2.set_cb(self.nextTurn)
+        #self.nextTurn()
+
     def nextTurn(self, button=None):
+        self.nextTurnBtn.set_caption("End turn")
+        self.nextTurnBtn2.set_caption("End turn")
+        self.nextTurnBtn.set_cb(self.endTurn)
+        self.nextTurnBtn2.set_cb(self.endTurn)
+
         self.map.updateMap()
         for tile in self.map.tiles:
             tile.unsetFocus()

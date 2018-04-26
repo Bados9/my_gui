@@ -22,7 +22,7 @@ class DialogItem(Item):
         self.fixed = False
 
         self.desc = DescItem(scene, 0, 0, self)
-        self.desc.set_content(caption)
+        self.desc.set_content(caption, 1.5)
 
         self.items = []
 
@@ -75,4 +75,4 @@ class DialogItem(Item):
         return QtCore.QRectF(0, 0, self.w, self.h)
 
     def set_caption(self, caption):
-        self.desc.set_content(caption)
+        self.desc.set_content(caption, 1.5)

@@ -33,7 +33,7 @@ class MainWindow():
         for item in self.settingsItems:
             self.scene.removeItem(item)
 
-        self.mainMenuItems[0].cursor_click()
+        self.mainMenuItems[1].cursor_click()
 
     def toMainMenu(self, button=None):
         for item in self.settingsItems:
