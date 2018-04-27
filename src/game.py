@@ -213,7 +213,7 @@ class Tile:
     def __init__(self, areaType, position, index, scene, myMap, editor=False, editorInstance=None):
         self.scene = scene
         self.areaType = areaType
-        self.number = 0
+        self.number = -1
         self.supplyType = areaSupplyDict[self.areaType]
         self.adjacentBuildings = adjBuildings[index]
         self.adjacentRoads = adjRoads[index]
@@ -253,20 +253,25 @@ class Tile:
         else:
             self.tileBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]), QTtoART(y=self.coords[1]), "", None,\
                 self.setAreaType, image_path=imagesPath + self.areaType + ".png", scale=8.5,\
-                background_color=QtCore.Qt.transparent)
+                background_color=QtCore.Qt.transparent, data=self.index)
             self.tileBtn.h = 180
 
-        if self.editor == False:
-            if self.number != 0:
-                XOffset = 40 
-                if self.number > 9:
-                    XOffset = 30
-                self.numberImg = ButtonItem(self.scene, QTtoART(x=self.coords[0]+XOffset), QTtoART(y=self.coords[1]+30), \
-                    str(self.number), None, self.changeFocus, scale=3,\
-                    background_color=QtCore.Qt.transparent)
-            else:
-                self.numberImg = None
-                self.drawThief()
+        
+        if self.number > 0:
+            XOffset = 40 
+            if self.number > 9:
+                XOffset = 30
+            self.numberImg = ButtonItem(self.scene, QTtoART(x=self.coords[0]+XOffset), QTtoART(y=self.coords[1]+30), \
+                str(self.number), None, self.changeFocus, scale=3,\
+                background_color=QtCore.Qt.transparent)
+        elif self.number == 0:
+            self.numberImg = None
+            self.drawThief()
+        else:
+            self.numberImg = None
+
+        if self.editor == True and self.numberImg != None:
+            self.numberImg.set_cb(self.setAreaType)
 
     def deleteThief(self, button=None):
         self.scene.removeItem(self.thiefIcon)
@@ -409,10 +414,27 @@ class Map:
         else:
             self.tiles[index] = Tile(areaType, position, index, self.scene, self, True, self.editorInstance)
     
-    def setTileNumbers(self, tileNumbers):
-        self.tileNumbers = tileNumbers
+    def setTileNumbers(self, button=None, arg=None):
+        if isinstance(arg, (list,)):
+            self.tileNumbers = arg
+        else:
+            startingCorner = button.data
+            settingDict = { 0 : [0,3,7,12,16,17,18,15,11,6,2,1,4,8,13,14,10,5,9],
+                            2 : [2,1,0,3,7,12,16,17,18,15,11,6,5,4,8,13,14,10,9],
+                            7 : [7,12,16,17,18,15,11,6,2,1,0,3,8,13,14,10,5,4,9],
+                            11: [11,6,2,1,0,3,7,12,16,17,18,15,10,5,4,8,13,14,9],
+                            16: [16,17,18,15,11,6,2,1,0,3,7,12,13,14,10,5,4,8,9],
+                            18: [18,15,11,6,2,1,0,3,7,12,16,17,14,10,5,4,8,13,9]}
+            numberList = [5,2,6,3,8,10,9,12,11,4,8,10,9,4,5,6,3,11]
+            for i in range(19):
+                if self.tiles[settingDict[startingCorner][i]].areaType != "DESERT":
+                    self.tileNumbers[settingDict[startingCorner][i]] = numberList[i]
+                else:
+                    numberList.insert(i, 0)
+                    pass
+
         for tile in self.tiles:
-            tile.setNumber(tileNumbers[tile.index])        
+            tile.setNumber(self.tileNumbers[tile.index])        
 
     def buildSettlement(self, number):
         self.places[number] = Building("settlement", self.game.colors[self.game.turnNumber%len(self.game.colors)])
@@ -612,7 +634,7 @@ class Player:
                 self.cardButtons.append(ButtonItem(self.game.scene, \
                     QTtoART(x=coordsDict[self.corner][2]+index*coordsDict[self.corner][4]), \
                     QTtoART(y=coordsDict[self.corner][3]), "", self.boundingRectangle, \
-                    self.setResourceForTrade, background_color=QtCore.Qt.green, data=key))
+                    self.setResourceForTrade, background_color=QtCore.Qt.transparent, data=key))
                 self.cardButtons[index].w = 70
                 self.cardButtons[index].h = 110
         else:
@@ -623,7 +645,7 @@ class Player:
                 self.cardButtons[index] = ButtonItem(self.game.scene, \
                     QTtoART(x=coordsDict[self.corner][2]-index*coordsDict[self.corner][4]), \
                     QTtoART(y=coordsDict[self.corner][3]), "", self.boundingRectangle, \
-                    self.setResourceForTrade, background_color=QtCore.Qt.green, data=key)
+                    self.setResourceForTrade, background_color=QtCore.Qt.transparent, data=key)
                 self.cardButtons[index].w = 70
                 self.cardButtons[index].h = 110
 
@@ -645,7 +667,6 @@ class Player:
 
     def tradeDialogAnswer(self, number):
         if number == 0:
-            #print("kliknulo se na INCREASE")
             if self.trade.resourceTwo == "NONE":
                 self.trade.resOneCount += 1
                 self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
@@ -657,7 +678,6 @@ class Player:
                 + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
                 + "\n CONFIRM SECOND RESOURCE?")
         elif number == 1:
-            #print("kliknulo se na DECREASE")
             if self.trade.resourceTwo == "NONE":
                 self.trade.resOneCount -= 1
                 self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
@@ -669,7 +689,6 @@ class Player:
                 + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
                 + "\n CONFIRM SECOND RESOURCE?")
         elif number == 2:
-            #print("kliknulo se na CONFIRM")
             if self.trade.resourceTwo == "NONE":
                 self.dialog.set_caption("SELECT SECOND RESOURCE")
             else:
@@ -683,7 +702,6 @@ class Player:
                     self.dialog = None    
                     self.trade = None       
         else:
-            #print("kliknulo se na CANCEL")
             self.game.scene.removeItem(self.dialog)
             for cardBtn in self.cardButtons:
                 self.game.scene.removeItem(cardBtn)
@@ -864,7 +882,7 @@ class Game:
         self.map = self.createDefaultMap() #TODO zmenit
         self.players = self.createPlayers(4) #TODO zmenit
         self.items = []
-        self.turnNumber = 7#-1
+        self.turnNumber = -1
         self.endOfTurn = False
         self.recognizer = Recognizer()
 
@@ -919,7 +937,7 @@ class Game:
         defaultMap.addTile("HILLS",[0,4],16)
         defaultMap.addTile("FIELDS",[1,4],17)
         defaultMap.addTile("PASTURE",[2,4],18)
-        defaultMap.setTileNumbers([10,2,1,12,6,4,10,9,11,0,3,8,8,3,4,1,5,6,11])
+        defaultMap.setTileNumbers(arg=[10,2,9,12,6,4,10,9,11,0,3,8,8,3,4,5,5,6,11])
         return defaultMap
 
     def createMap(self):
@@ -955,7 +973,6 @@ class Game:
         pass
 
     def distributeSupplies(self, number):
-        #TODO cisla tileNumbers musi odpovidat cislum tiles!!!
         indices = [i for i, x in enumerate(self.map.tileNumbers) if x == number]
         for i in indices:
             if self.map.tiles[i].index != self.map.thief:

@@ -146,13 +146,9 @@ def main(args):
 
     gui = MyGui(0, 0, 1.00, 0.60, 2000, 1234)
     
-    #gui.menuTabs = menuTabs(gui.scene)
-
     gui.debug_view()
 
     gui.mainWindow = MainWindow(gui.scene)
-
-    #rospy.Subscriber('/art/interface/touchtable/touch', Touch, gui.menuTabs.touch_cb)
 
     timer = QtCore.QTimer()
     timer.start(500)

@@ -21,6 +21,7 @@ class MapEditor:
         self.map = self.createEmptyMap()
         self.scene.setBackgroundBrush(QtGui.QBrush(QtGui.QColor(30,144,255)))
         self.mainWindow = mainWindow
+        self.noMoreTiles = []
 
         self.map.drawMap()
         self.drawUI()
@@ -46,7 +47,7 @@ class MapEditor:
         emptyMap.addTile("NONE",[0,4],16)
         emptyMap.addTile("NONE",[1,4],17)
         emptyMap.addTile("NONE",[2,4],18)
-        emptyMap.setTileNumbers([10,2,1,12,6,4,10,9,11,0,3,8,8,3,4,1,5,6,11])
+        emptyMap.setTileNumbers(arg=[-1]*19)
         return emptyMap
 
     def drawUI(self):
@@ -66,21 +67,72 @@ class MapEditor:
         self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+XOffset), QTtoART(y=YCoord), "Load map", None, self.drawLoadSlots, scale = 3))
         self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+2*XOffset), QTtoART(y=YCoord), "Save map", None, self.drawSaveSlots, scale = 3))
         self.menuButtons.append(ButtonItem(self.scene, QTtoART(x=XCoord+3*XOffset), QTtoART(y=YCoord), "Exit editor", None, self.exitEditor, scale = 3))
+        
+        self.invisibleButton = ButtonItem(self.scene, QTtoART(x=2000), QTtoART(y=1500), "", None, self.map.changeSelectedAreaType, data="NONE")
+    
+    def wrongTile(self, button=None):
+        self.info.set_content("You must choose corner tile!")
+
+    def setTileNumbers(self, button=None):
+        self.map.scene.removeItem(self.info)
+        self.info = None
+        self.map.setTileNumbers(button)
+        self.scene.clear()
+        self.map.drawMap()
+        self.drawUI()
+
+    def setNumbers(self, button=None):
+        for tile in self.map.tiles:
+            if tile.index in [0,2,7,11,16,18]:
+                tile.tileBtn.set_cb(self.setTileNumbers)
+            else:
+                tile.tileBtn.set_cb(self.wrongTile)
+
+    def setNoMore(self, tileType):
+        self.areaTypeButtons[tileType].set_enabled(False)
+        #TODO udelat lepe
+
+    def removeNoMore(self, tileType):
+        self.areaTypeButtons[tileType].set_enabled(True)
+        #TODO udelat lepe
 
     def checkCounts(self):
         typeList = [x.areaType for x in self.map.tiles]
         typeCounts = Counter(typeList)
         for areaType in ["PASTURE","FOREST","FIELDS"]:
             if typeCounts[areaType] > 3:
-                self.scene.removeItem(self.areaTypeButtons[areaType]) #TODO nejak lip udelat
+                self.setNoMore(areaType)
+                if areaType not in self.noMoreTiles:
+                    self.noMoreTiles.append(areaType)
+                    self.invisibleButton.cursor_click()
+            elif areaType in self.noMoreTiles:
+                self.removeNoMore(areaType)
+                self.noMoreTiles.remove(areaType)
 
         for areaType in ["HILLS", "MOUNTAINS"]:
             if typeCounts[areaType] > 2:
-                self.scene.removeItem(self.areaTypeButtons[areaType]) #TODO nejak lip udelat
+                self.setNoMore(areaType)
+                if areaType not in self.noMoreTiles:
+                    self.noMoreTiles.append(areaType)
+                    self.invisibleButton.cursor_click()
+            elif areaType in self.noMoreTiles:
+                self.removeNoMore(areaType)
+                self.noMoreTiles.remove(areaType)
 
         for areaType in ["DESERT"]:
             if typeCounts[areaType] > 0:
-                self.scene.removeItem(self.areaTypeButtons[areaType]) #TODO nejak lip udelat
+                self.setNoMore(areaType)
+                if areaType not in self.noMoreTiles:
+                    self.noMoreTiles.append(areaType)
+                    self.invisibleButton.cursor_click()
+            elif areaType in self.noMoreTiles:
+                self.removeNoMore(areaType)
+                self.noMoreTiles.remove(areaType)
+
+        if "NONE" not in [x.areaType for x in self.map.tiles]:
+            self.info = DescItem(self.scene, QTtoART(x=900), QTtoART(y=1000), None)
+            self.info.set_content("Choose corner tile for start numbering", 3)
+            self.setNumbers()
 
     def newMap(self, button):
         self.map = self.createEmptyMap()
@@ -109,7 +161,11 @@ class MapEditor:
         temp = file.read().splitlines()
         for tile in self.map.tiles:
             tile.areaType = temp[tile.index]
-            print("areaType = " + tile.areaType)
+        numbers = temp[19].split(',')
+        numberList = []
+        for num in numbers[:19]:
+            numberList.append(int(num))
+        self.map.setTileNumbers(arg=numberList)
         file.close()
         
         self.scene.clear()
@@ -141,7 +197,9 @@ class MapEditor:
  
         for tile in self.map.tiles:
             file.write(tile.areaType + "\n")
-         
+        for number in self.map.tileNumbers:
+            file.write(str(number) + ",")
+        file.write("\n")
         file.close()
         self.displayMenu()
 
