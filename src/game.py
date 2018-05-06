@@ -21,9 +21,7 @@ imagesPath = rospack.get_path('my_gui') + '/src/images/'
 
 def QTtoART(x=None,y=None):
     if y is None:
-        #print("x = " + str(x/2000.0))
         return x/2000.0
-    #print("y = " + str(0.60 - y/2000.0))
     return 0.60 - y/2000.0
 
 adjBuildings = {0 : [ 0, 1, 2,10, 9, 8],
@@ -229,7 +227,7 @@ class Tile:
         self.cityIcons = [None] * 6
         self.settlementIcons = [None] * 6
         self.editor = editor
-        self.thiefIcon = None
+        self.robberIcon = None
         self.editorInstance = editorInstance
 
     def setNumber(self, number):
@@ -261,24 +259,27 @@ class Tile:
             XOffset = 40 
             if self.number > 9:
                 XOffset = 30
-            self.numberImg = ButtonItem(self.scene, QTtoART(x=self.coords[0]+XOffset), QTtoART(y=self.coords[1]+30), \
+            self.numberBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]+XOffset), QTtoART(y=self.coords[1]+30), \
                 str(self.number), None, self.changeFocus, scale=3,\
-                background_color=QtCore.Qt.transparent)
+                background_color=QtCore.Qt.transparent, data=self.index)
         elif self.number == 0:
-            self.numberImg = None
-            self.drawThief()
+            self.numberBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]+30), QTtoART(y=self.coords[1]+30), \
+               "", None, self.changeFocus, scale=3,\
+                background_color=QtCore.Qt.transparent, data=self.index)
+            self.numberBtn.w = 105
+            self.drawRobber()
         else:
-            self.numberImg = None
+            self.numberBtn = None
 
-        if self.editor == True and self.numberImg != None:
-            self.numberImg.set_cb(self.setAreaType)
+        if self.editor == True and self.numberBtn != None:
+            self.numberBtn.set_cb(self.setAreaType)
 
-    def deleteThief(self, button=None):
-        self.scene.removeItem(self.thiefIcon)
-        self.thiefIcon = None
+    def deleteRobber(self, button=None):
+        self.scene.removeItem(self.robberIcon)
+        self.robberIcon = None
 
-    def drawThief(self, button=None):
-        self.thiefIcon = ButtonItem(self.scene, QTtoART(x=self.coords[0]+40), QTtoART(y=self.coords[1]+30), \
+    def drawRobber(self, button=None):
+        self.robberIcon = ButtonItem(self.scene, QTtoART(x=self.coords[0]+40), QTtoART(y=self.coords[1]+30), \
                 str(self.number), None, self.changeFocus, scale=3, image_path=imagesPath + "butt_crossroad_black.png",\
                 background_color=QtCore.Qt.transparent)
 
@@ -287,6 +288,16 @@ class Tile:
         self.areaType = self.map.selectedAreaType
         self.editorInstance.checkCounts()
         self.drawTileBtn(75)
+
+    def set_cb_toChangeFocus(self):
+        self.tileBtn.set_cb(self.changeFocus)
+        if self.numberBtn != None:
+            self.numberBtn.set_cb(self.changeFocus)
+
+    def set_cb_toRobber(self):
+        self.tileBtn.set_cb(self.map.moveRobber)
+        if self.numberBtn != None:
+            self.numberBtn.set_cb(self.map.moveRobber)
 
     def updateTile(self):
             if self.index in [4,5,8,10,13,14]:
@@ -401,7 +412,7 @@ class Map:
         self.buildMode = "settlement"
         self.selectedAreaType = "NONE"
         self.editor = editor
-        self.thief = 9
+        self.robber = 9
         self.editorInstance = editorInstance
 
     def changeSelectedAreaType(self, button=None):
@@ -414,6 +425,22 @@ class Map:
         else:
             self.tiles[index] = Tile(areaType, position, index, self.scene, self, True, self.editorInstance)
     
+    def changeToNormalMode(self):
+        for tile in self.tiles:
+            tile.set_cb_toChangeFocus()
+
+    def changeToRobberMode(self):
+        for tile in self.tiles:
+            tile.set_cb_toRobber()
+        self.game.announcementArea.set_content("MOVE ROBBER")
+
+    def moveRobber(self, button=None):
+        print("presouvame z " + str(self.robber) + " na " + str(button.data))
+        self.tiles[self.robber].deleteRobber()
+        self.robber = button.data
+        self.tiles[self.robber].drawRobber()
+        self.changeToNormalMode()
+
     def setTileNumbers(self, button=None, arg=None):
         if isinstance(arg, (list,)):
             self.tileNumbers = arg
@@ -874,15 +901,19 @@ class Player:
 #################################################################################################################
 
 class Game: 
-    def __init__(self, scene):
+    def __init__(self, scene, loadMapSlot):
+        #print("hra zacina na mape ze slotu " + str(loadMapSlot))
         self.scene = scene
         self.colors = ["blue", "green", "red", "yellow"]
         self.supplyCards = self.createStartingSupplyCards() #pole karet zasob
         self.actionCards = self.createStartingActionCards()
-        self.map = self.createDefaultMap() #TODO zmenit
+        if loadMapSlot == "default":
+            self.map = self.createDefaultMap() #TODO zmenit
+        else:
+            self.map = self.loadMap(loadMapSlot)
         self.players = self.createPlayers(4) #TODO zmenit
         self.items = []
-        self.turnNumber = -1
+        self.turnNumber = 7#-1
         self.endOfTurn = False
         self.recognizer = Recognizer()
 
@@ -940,9 +971,46 @@ class Game:
         defaultMap.setTileNumbers(arg=[10,2,9,12,6,4,10,9,11,0,3,8,8,3,4,5,5,6,11])
         return defaultMap
 
-    def createMap(self):
-        #vytvori mapu
-        pass
+    def createEmptyMap(self):
+        emptyMap = Map(self.scene, self, editor=True)
+        emptyMap.addTile("NONE",[0,0],0)
+        emptyMap.addTile("NONE",[1,0],1)
+        emptyMap.addTile("NONE",[2,0],2)
+        emptyMap.addTile("NONE",[0,1],3)
+        emptyMap.addTile("NONE",[1,1],4)
+        emptyMap.addTile("NONE",[2,1],5)
+        emptyMap.addTile("NONE",[3,1],6)
+        emptyMap.addTile("NONE",[-1,2],7)
+        emptyMap.addTile("NONE",[0,2],8)
+        emptyMap.addTile("NONE",[1,2],9)
+        emptyMap.addTile("NONE",[2,2],10)
+        emptyMap.addTile("NONE",[3,2],11)
+        emptyMap.addTile("NONE",[0,3],12)
+        emptyMap.addTile("NONE",[1,3],13)
+        emptyMap.addTile("NONE",[2,3],14)
+        emptyMap.addTile("NONE",[3,3],15)
+        emptyMap.addTile("NONE",[0,4],16)
+        emptyMap.addTile("NONE",[1,4],17)
+        emptyMap.addTile("NONE",[2,4],18)
+        emptyMap.setTileNumbers(arg=[-1]*19)
+        return emptyMap
+
+    def loadMap(self, loadMapSlot):
+        loadedMap = self.createEmptyMap()
+        resPath = rospack.get_path('my_gui') + '/src/maps/'
+        
+        file = open(resPath + "mapfile" + str(loadMapSlot) + ".map",'r') 
+
+        temp = file.read().splitlines()
+        for tile in loadedMap.tiles:
+            tile.areaType = temp[tile.index]
+        numbers = temp[19].split(',')
+        numberList = []
+        for num in numbers[:19]:
+            numberList.append(int(num))
+        loadedMap.setTileNumbers(arg=numberList)
+        file.close()
+        return loadedMap
 
     def createStartingSupplyCards(self):
         return {"BRICK":19,"GRAIN":19,"LUMBER":19,"ORE":19,"WOOL":19}
@@ -975,7 +1043,7 @@ class Game:
     def distributeSupplies(self, number):
         indices = [i for i, x in enumerate(self.map.tileNumbers) if x == number]
         for i in indices:
-            if self.map.tiles[i].index != self.map.thief:
+            if self.map.tiles[i].index != self.map.robber:
                 self.map.tiles[i].giveSupplies(self)
 
     def checkGameEnd(self):
@@ -1030,11 +1098,13 @@ class Game:
             self.players[self.colors[self.turnNumber%len(self.colors)]].enablePlayerUI()
             print("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player.")
             #hod kostkama
-            #number = self.recognizer.getDicesValue()
+            # number = self.recognizer.getDicesValue()
             number1 = randint(1,6)
             number2 = randint(1,6)
             number = number1 + number2
-            #rozdeleni surovin
+            if number == 7:
+                self.map.changeToRobberMode()
+            # rozdeleni surovin
             self.distributeSupplies(number)
             #obchodovani
             for key, player in self.players.items():
