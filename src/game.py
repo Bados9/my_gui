@@ -157,7 +157,7 @@ def canIBuildThereSettlement(place, game):
     for neighbour in neighbours:
         if game.map.places[neighbour] is not None:
             return False
-    if game.turnNumber > 7:
+    if game.turnNumber > len(game.colors)*2-1:
         for road in crossroads[place]:
             if game.map.roads[road] is not None and game.map.roads[road].color == game.colors[game.turnNumber%len(game.colors)]:
                 return True
@@ -300,7 +300,7 @@ class Tile:
             self.numberBtn.set_cb(self.map.moveRobber)
 
     def updateTile(self):
-            if self.index in [4,5,8,10,13,14]:
+            if self.index in [4,10,13]:
                 self.unsetFocus()
                 return
             self.unsetFocus()
@@ -326,6 +326,7 @@ class Tile:
             for index, corner in enumerate(corners):
                 if self.map.roads[self.adjacentRoads[index]] is not None:
                     if self.roadIcons[index] is None:
+                        #print("davam cestu na roh " + str(index) + " u policka " + str(self.index))
                         self.roadIcons[index] = (ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
                             None, doNothing, background_color=QtCore.Qt.transparent, image_path = imagesPath+"road_"
                              + self.map.roads[self.adjacentRoads[index]].color + ".png"))
@@ -333,8 +334,9 @@ class Tile:
 
             for index, settlement in enumerate(self.settlementIcons):
                 if self.cityIcons[index] is not None:
-                    self.scene.removeItem(settlement)
-                    self.settlementIcons[index] = None
+                    if settlement is not None:
+                        self.scene.removeItem(settlement)
+                        self.settlementIcons[index] = None
 
     def changeFocus(self, button=None):
         if self.focus == True:
@@ -379,17 +381,21 @@ class Tile:
         self.focus = False
 
     def buildSettlement(self, button=None):
-        print("kliknulo se na krizovatku c." + str(self.adjacentBuildings[button.data]))
+        #print("kliknulo se na krizovatku c." + str(self.adjacentBuildings[button.data]))
         if self.map.buildMode == "settlement":
             self.map.buildSettlement(self.adjacentBuildings[button.data])
 
     def buildRoad(self, button=None):
-        self.map.buildRoad(self.adjacentRoads[button.data])
+        #print("kliknulo se na cestu c. " + str(self.adjacentRoads[button.data]))
+        if self.map.buildMode == "road":
+            self.map.buildRoad(self.adjacentRoads[button.data])
 
     def buildCity(self, button=None):
         if self.map.buildMode == "city":
             self.map.buildCity(self.adjacentBuildings[button.data])
-            self.scene.removeItem(self.settlementIcons[button.data])
+            if (self.settlementIcons[button.data]) is not None:
+                self.scene.removeItem(self.settlementIcons[button.data])
+
     def giveSupplies(self, game):
         for index in self.adjacentBuildings:
             if self.map.places[index] is not None:
@@ -432,10 +438,10 @@ class Map:
     def changeToRobberMode(self):
         for tile in self.tiles:
             tile.set_cb_toRobber()
-        self.game.announcementArea.set_content("MOVE ROBBER")
+        self.game.announcementArea.set_content("     MOVE ROBBER", 3)
 
     def moveRobber(self, button=None):
-        print("presouvame z " + str(self.robber) + " na " + str(button.data))
+        #print("presouvame z " + str(self.robber) + " na " + str(button.data))
         self.tiles[self.robber].deleteRobber()
         self.robber = button.data
         self.tiles[self.robber].drawRobber()
@@ -465,10 +471,9 @@ class Map:
 
     def buildSettlement(self, number):
         self.places[number] = Building("settlement", self.game.colors[self.game.turnNumber%len(self.game.colors)])
-        for tile in self.tiles:
-            tile.updateTile()
+        self.updateMap()
         self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["settlements"] -= 1
-        if self.game.turnNumber <= 7:
+        if self.game.turnNumber <= len(self.game.colors)*2-1:
             self.game.nextTurn()
         else:
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "BRICK")
@@ -480,12 +485,11 @@ class Map:
         self.game.checkGameEnd()
 
     def buildCity(self, number):
-        if self.game.turnNumber <= 7:
+        if self.game.turnNumber <= len(self.game.colors)*2-1:
             return
 
         self.places[number] = Building("city", self.game.colors[self.game.turnNumber%len(self.game.colors)])
-        for tile in self.tiles:
-            tile.updateTile()
+        self.updateMap()
         self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["cities"] -= 1
         self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["settlements"] += 1
 
@@ -500,10 +504,9 @@ class Map:
 
     def buildRoad(self, number):
         self.roads[number] = Building("road", self.game.colors[self.game.turnNumber%len(self.game.colors)])
-        for tile in self.tiles:
-            tile.updateTile()
+        self.updateMap()
         self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["roads"] -= 1
-        if self.game.turnNumber <= 7:
+        if self.game.turnNumber <= len(self.game.colors)*2-1:
             self.game.nextTurn()
         else:
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "BRICK")
@@ -574,23 +577,23 @@ class Player:
                 buildingPermission = True
                 break
         if buildingPermission == False:
-            self.game.announcementArea.set_content("No place to build", 3)
-            self.game.announcementArea2.set_content("No place to build", 3)
+            self.game.announcementArea.set_content("     No place to build", 3)
+            self.game.announcementArea2.set_content("     No place to build", 3)
             return
 
         self.game.map.buildMode = "road"
-        self.game.announcementArea.set_content("Choose tile", 3)
-        self.game.announcementArea2.set_content("Choose tile", 3)
+        self.game.announcementArea.set_content("        Choose tile", 3)
+        self.game.announcementArea2.set_content("        Choose tile", 3)
 
     def buySettlement(self, button=None):
         if self.supplyCards["BRICK"] < 1 or self.supplyCards["LUMBER"] < 1 or self.supplyCards["WOOL"] < 1 or\
         self.supplyCards["GRAIN"] < 1:
-            self.game.announcementArea.set_content("You do not have enough resources", 3)
-            self.game.announcementArea2.set_content("You do not have enough resources", 3)
+            self.game.announcementArea.set_content("You do not have enough resources", 2)
+            self.game.announcementArea2.set_content("You do not have enough resources", 2)
             return
         if self.buildings["settlements"] == 0:
-            self.game.announcementArea.set_content("You do not have any settlements left", 3)
-            self.game.announcementArea2.set_content("You do not have any settlements left", 3)
+            self.game.announcementArea.set_content("You do not have any settlements left", 2)
+            self.game.announcementArea2.set_content("You do not have any settlements left", 2)
             return
 
         buildingPermission = False
@@ -599,22 +602,23 @@ class Player:
                 buildingPermission = True
                 break
         if buildingPermission == False:
-            self.game.announcementArea.set_content("No place to build", 3)
-            self.game.announcementArea2.set_content("No place to build", 3)
+            self.game.announcementArea.set_content("     No place to build", 3)
+            self.game.announcementArea2.set_content("     No place to build", 3)
             return
         
         self.game.map.buildMode = "settlement"
-        self.game.announcementArea.set_content("Choose tile", 3)
-        self.game.announcementArea2.set_content("Choose tile", 3)
+        self.game.announcementArea.set_content("        Choose tile", 3)
+        self.game.announcementArea2.set_content("        Choose tile", 3)
+        self.game.drawTurnOfPlayerAnnouncement(self.color, "village")
         
     def buyCity(self, button=None):
         if self.supplyCards["ORE"] < 3 or self.supplyCards["GRAIN"] < 2:
-            self.game.announcementArea.set_content("You do not have enough resources", 3)
-            self.game.announcementArea2.set_content("You do not have enough resources", 3)
+            self.game.announcementArea.set_content("You do not have enough resources", 2)
+            self.game.announcementArea2.set_content("You do not have enough resources", 2)
             return
         if self.buildings["cities"] == 0:
-            self.game.announcementArea.set_content("You do not have any cities left", 3)
-            self.game.announcementArea2.set_content("You do not have any cities left", 3)
+            self.game.announcementArea.set_content("You do not have any cities left", 2)
+            self.game.announcementArea2.set_content("You do not have any cities left", 2)
             return
         
         buildingPermission = False
@@ -623,13 +627,14 @@ class Player:
                 buildingPermission = True
                 break
         if buildingPermission == False:
-            self.game.announcementArea.set_content("No place to build", 3)
-            self.game.announcementArea2.set_content("No place to build", 3)
+            self.game.announcementArea.set_content("     No place to build", 3)
+            self.game.announcementArea2.set_content("     No place to build", 3)
             return
 
         self.game.map.buildMode = "city"
-        self.game.announcementArea.set_content("Choose tile (city building)", 3)
-        self.game.announcementArea2.set_content("Choose tile", 3)
+        self.game.announcementArea.set_content("        Choose tile", 3)
+        self.game.announcementArea2.set_content("        Choose tile", 3)
+        self.game.drawTurnOfPlayerAnnouncement(self.color, "city")
 
     def setResourceForTrade(self, button):
         print("klik na " + str(button.data))
@@ -686,7 +691,8 @@ class Player:
             self.addSupplyCard(trade.resourceTwo)
 
         for cardBtn in self.cardButtons:
-            self.game.scene.removeItem(cardBtn)
+            if cardBtn is not None:
+                self.game.scene.removeItem(cardBtn)
 
         self.cardButtons = [None] * 5
         self.updatePlayerUI()
@@ -695,23 +701,23 @@ class Player:
     def tradeDialogAnswer(self, number):
         if number == 0:
             if self.trade.resourceTwo == "NONE":
-                self.trade.resOneCount += 1
+                self.trade.increaseResOne(self.supplyCards[self.trade.resourceOne])
                 self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
                 + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
                 + "\n CONFIRM FIRST RESOURCE?")
             else:
-                self.trade.resTwoCount += 1
+                self.trade.increaseResTwo()
                 self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
                 + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
                 + "\n CONFIRM SECOND RESOURCE?")
         elif number == 1:
             if self.trade.resourceTwo == "NONE":
-                self.trade.resOneCount -= 1
+                self.trade.decreaseResOne()
                 self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
                 + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
                 + "\n CONFIRM FIRST RESOURCE?")
             else:
-                self.trade.resTwoCount -= 1
+                self.trade.decreaseResTwo()
                 self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
                 + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
                 + "\n CONFIRM SECOND RESOURCE?")
@@ -722,7 +728,7 @@ class Player:
                 if whereIsIt(self.dialog.pos()) == self.color:
                     self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
                     + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
-                    + "\nWAITING FOR AGREEMENT FROM SECOND PLAYER")
+                    + "\n WAITING FOR AGREEMENT FROM SECOND PLAYER")
                 else:
                     self.tradeSupplies(self.trade, whereIsIt(self.dialog.pos()))
                     self.game.scene.removeItem(self.dialog)
@@ -731,7 +737,8 @@ class Player:
         else:
             self.game.scene.removeItem(self.dialog)
             for cardBtn in self.cardButtons:
-                self.game.scene.removeItem(cardBtn)
+                if cardBtn is not None:
+                    self.game.scene.removeItem(cardBtn)
             self.cardButtons = [None] * 5
             self.dialog = None
 
@@ -901,7 +908,7 @@ class Player:
 #################################################################################################################
 
 class Game: 
-    def __init__(self, scene, loadMapSlot):
+    def __init__(self, scene, loadMapSlot, numberOfPlayers):
         #print("hra zacina na mape ze slotu " + str(loadMapSlot))
         self.scene = scene
         self.colors = ["blue", "green", "red", "yellow"]
@@ -911,11 +918,12 @@ class Game:
             self.map = self.createDefaultMap() #TODO zmenit
         else:
             self.map = self.loadMap(loadMapSlot)
-        self.players = self.createPlayers(4) #TODO zmenit
+        self.players = self.createPlayers(numberOfPlayers) #TODO zmenit
         self.items = []
-        self.turnNumber = 7#-1
+        self.turnNumber = -1
         self.endOfTurn = False
         self.recognizer = Recognizer()
+        self.playerTurnMarks = [None] * 4
 
         #TODO na vymazani pak
         self.rect = QtGui.QGraphicsRectItem(0,0,2000, 1200)
@@ -926,9 +934,9 @@ class Game:
         #self.scene.setBackgroundBrush(QtGui.QBrush(QtGui.QColor(30,144,255)))
         self.scene.setBackgroundBrush(QtCore.Qt.black)
 
-        self.announcementArea = DescItem(self.scene, 0.4, 0.1, None)
+        self.announcementArea = DescItem(self.scene, QTtoART(x=750), QTtoART(y=980), None)
 
-        self.announcementArea2 = DescItem(self.scene, 0.6, 0.5, None)
+        self.announcementArea2 = DescItem(self.scene, QTtoART(x=1250), QTtoART(y=220), None)
         self.announcementArea2.setRotation(180)
 
         self.nextTurnBtn = ButtonItem(self.scene, QTtoART(x=920), QTtoART(y=1050), "End turn", None, self.endTurn, scale=2)
@@ -942,6 +950,7 @@ class Game:
         #TouchTableItem(self.scene, '/art/interface/touchtable/touch')
 
     def createPlayers(self, count):
+        self.colors = self.colors[:count]
         playerPool = {}
         for n in range(count):  
             playerPool[self.colors[n]] = Player(self.colors[n], n, self)
@@ -1046,6 +1055,23 @@ class Game:
             if self.map.tiles[i].index != self.map.robber:
                 self.map.tiles[i].giveSupplies(self)
 
+    def drawTurnOfPlayerAnnouncement(self, color, mode="road"):
+        for mark in self.playerTurnMarks:
+            if mark != None:
+                self.scene.removeItem(mark)
+
+        self.playerTurnMarks[0] = ButtonItem(self.scene, QTtoART(x=500), QTtoART(y=800), "", None, doNothing, \
+            image_path=imagesPath + mode + "_" + color + ".png", background_color=QtCore.Qt.transparent, scale=7)
+        self.playerTurnMarks[1] = ButtonItem(self.scene, QTtoART(x=1350), QTtoART(y=800), "", None, doNothing, \
+            image_path=imagesPath + mode + "_" + color + ".png", background_color=QtCore.Qt.transparent, scale=7)
+        self.playerTurnMarks[2] = ButtonItem(self.scene, QTtoART(x=1350), QTtoART(y=200), "", None, doNothing, \
+            image_path=imagesPath + mode + "_" + color + ".png", background_color=QtCore.Qt.transparent, scale=7)
+        self.playerTurnMarks[3] = ButtonItem(self.scene, QTtoART(x=500), QTtoART(y=200), "", None, doNothing, \
+            image_path=imagesPath + mode + "_" + color + ".png", background_color=QtCore.Qt.transparent, scale=7)
+        for mark in self.playerTurnMarks:
+            if mark != None:
+                mark.h = 150
+
     def checkGameEnd(self):
         for key, player in self.players.items():
             player.countPoints()
@@ -1058,6 +1084,7 @@ class Game:
         self.nextTurnBtn2.set_caption("Next turn")
         self.nextTurnBtn.set_cb(self.nextTurn)
         self.nextTurnBtn2.set_cb(self.nextTurn)
+        self.players[self.colors[self.turnNumber%len(self.colors)]].disablePlayerUI()
         #self.nextTurn()
 
     def nextTurn(self, button=None):
@@ -1069,21 +1096,21 @@ class Game:
         self.map.updateMap()
         for tile in self.map.tiles:
             tile.unsetFocus()
-        self.players[self.colors[self.turnNumber%len(self.colors)]].disablePlayerUI()
         self.turnNumber += 1
         if self.endOfTurn:
             self.turnNumber -= 1
-        if self.turnNumber <= 7:
+        if self.turnNumber <= len(self.colors)*2-1:
             if self.endOfTurn == False:
                 for key, player in self.players.items():
                     player.disablePlayerUI()
                 self.map.buildMode = "settlement"
                 for tile in self.map.tiles:
                     tile.setFocus()
-                self.announcementArea.set_content("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player:" + \
-                    "\nChoose starting position", 3)
-                self.announcementArea2.set_content("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player:" + \
-                    "\nChoose starting position", 3)
+                self.drawTurnOfPlayerAnnouncement(self.colors[self.turnNumber%len(self.colors)])
+                self.announcementArea.set_content(self.colors[self.turnNumber%len(self.colors)].upper() + " : " + \
+                    "Choose starting position", 2)
+                self.announcementArea2.set_content(self.colors[self.turnNumber%len(self.colors)].upper() + " : " + \
+                    "Choose starting position", 2)
                 self.endOfTurn = True
             else:
                 self.map.buildMode = "road"

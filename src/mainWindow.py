@@ -20,31 +20,55 @@ class MainWindow():
         self.scene = scene
         self.mapMenuHidden = False
         self.startingMap = "default"
+        self.numberOfPlayers = 4
         TouchTableItem(self.scene, '/art/interface/touchtable/touch')
 
         self.mainMenuItems = []
         self.mainMenuItems.append(ButtonItem(self.scene, QTtoART(x=950), QTtoART(y=0), "New Game", None, \
-            self.launchGame, scale = 3, background_color=QtCore.Qt.transparent,image_path=imagesPath+"button_play.png"))
+            self.launchGame, scale = 3))
+        mapSelection = DescItem(self.scene, QTtoART(x=950), QTtoART(y=120), None)
+        mapSelection.set_content("Map: Default", 3)
+        self.mainMenuItems.append(mapSelection)
         self.mainMenuItems.append(ButtonItem(self.scene, 0.5, 0.5, "Map editor", None, self.launchMapEditor, scale = 3))
         self.mainMenuItems.append(ButtonItem(self.scene, 0.5, 0.4, "Settings", None, self.toSettings, scale = 3))
         self.mainMenuItems.append(ButtonItem(self.scene, 0.5, 0.3, "Exit", None, self.quitApp, scale = 3))
-        self.mainMenuItems.append(ButtonItem(self.scene, QTtoART(x=0), QTtoART(y=900), \
-            "Change map", None, self.toggleChangeMapMenu, scale = 2))
 
-        changeMapXCoord = 100
-        changeMapYCoord = 1000
-        changeMapXOffset = 250
+        changeMapXCoord = 500
+        changeMapYCoord = 300
+        changeMapXOffset = 210
         self.changeMapMenuItems = []
         for i in range(5):
-            self.changeMapMenuItems.append(ButtonItem(self.scene, QTtoART(x=changeMapXCoord+i*changeMapXOffset), \
-                QTtoART(y=changeMapYCoord), "", None, self.changeStartingMap, scale = 2, data=i))
-            self.changeMapMenuItems[i].set_caption("Slot " + str(i), QTtoART(x=200))
-        self.changeMapMenuItems.append(ButtonItem(self.scene, QTtoART(x=changeMapXCoord+5*changeMapXOffset), \
-            QTtoART(y=changeMapYCoord), "Default map", None, self.changeStartingMap, scale = 2, data="default"))
+            if self.startingMap == i:
+                self.changeMapMenuItems.append(ButtonItem(self.scene, QTtoART(x=changeMapXCoord+i*changeMapXOffset), \
+                    QTtoART(y=changeMapYCoord), "", None, self.changeStartingMap, scale = 2, data=i, \
+                    background_color=QtCore.Qt.red))
+                self.changeMapMenuItems[i].set_caption("Slot " + str(i), QTtoART(x=200))
+            else:
+                self.changeMapMenuItems.append(ButtonItem(self.scene, QTtoART(x=changeMapXCoord+i*changeMapXOffset), \
+                    QTtoART(y=changeMapYCoord), "", None, self.changeStartingMap, scale = 2, data=i))
+                self.changeMapMenuItems[i].set_caption("Slot " + str(i), QTtoART(x=200))
+        
+        if self.startingMap == "default":
+            self.changeMapMenuItems.append(ButtonItem(self.scene, QTtoART(x=changeMapXCoord+5*changeMapXOffset), \
+                QTtoART(y=changeMapYCoord), "Default map", None, self.changeStartingMap, scale = 2, data="default",\
+                background_color=QtCore.Qt.red))
+        else:
+            self.changeMapMenuItems.append(ButtonItem(self.scene, QTtoART(x=changeMapXCoord+5*changeMapXOffset), \
+                QTtoART(y=changeMapYCoord), "Default map", None, self.changeStartingMap, scale = 2, data="default"))
         self.toggleChangeMapMenu()
 
         self.settingsItems = []
-        self.settingsItems.append(ButtonItem(self.scene, 0.8, 0.3, "some settings", None, None, scale = 3))
+        mapLabel = DescItem(self.scene, QTtoART(x=changeMapXCoord-430), QTtoART(y=changeMapYCoord+10), None)
+        mapLabel.set_content("Selected map: ", 3)
+        self.settingsItems.append(mapLabel)
+        playersLabel = DescItem(self.scene, QTtoART(x=changeMapXCoord-430), QTtoART(y=changeMapYCoord-100), None)
+        playersLabel.set_content("Number of players: ", 3)
+        self.settingsItems.append(playersLabel)
+        self.settingsItems.append(ButtonItem(self.scene, 0.2, 0.4, "Back", None, self.toMainMenu, scale = 3))
+        numberLabel = DescItem(self.scene, QTtoART(x=changeMapXCoord-430), QTtoART(y=changeMapYCoord-100), None)
+        numberLabel.set_content("Number of players: ", 3)
+        self.settingsItems.append(numberLabel)
+        self.settingsItems.append(ButtonItem(self.scene, 0.2, 0.4, "Back", None, self.toMainMenu, scale = 3))
         self.settingsItems.append(ButtonItem(self.scene, 0.2, 0.4, "Back", None, self.toMainMenu, scale = 3))
         for item in self.settingsItems:
             self.scene.removeItem(item)
@@ -53,7 +77,14 @@ class MainWindow():
 
     def changeStartingMap(self, button=None):
         self.startingMap = button.data
-        self.toggleChangeMapMenu()
+        for item in self.changeMapMenuItems:
+            item.set_background_color(QtCore.Qt.green)
+        button.set_background_color(QtCore.Qt.red)
+
+        if button.data == "default":
+            self.mainMenuItems[1].set_content("Map: Default", 3)
+        else:
+            self.mainMenuItems[1].set_content("Map: Slot " + str(button.data), 3)
 
     def toggleChangeMapMenu(self, button=None):
         if self.mapMenuHidden:
@@ -71,6 +102,7 @@ class MainWindow():
 
         for item in self.mainMenuItems:
             self.scene.addItem(item)
+        self.toggleChangeMapMenu()
 
     def toSettings(self, event):
         for item in self.mainMenuItems:
@@ -78,11 +110,12 @@ class MainWindow():
 
         for item in self.settingsItems:
             self.scene.addItem(item)
+        self.toggleChangeMapMenu()
 
     def launchGame(self, event):
         for item in self.mainMenuItems:
             self.scene.removeItem(item)
-        self.game = Game(self.scene, self.startingMap)
+        self.game = Game(self.scene, self.startingMap, self.numberOfPlayers)
         self.game.nextTurn()
 
     def launchMapEditor(self, button):
