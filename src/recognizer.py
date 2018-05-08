@@ -1,6 +1,7 @@
 import cv2
 import rospkg
 import rospy
+import numpy as np
 from cv_bridge import CvBridge, CvBridgeError
 
 rospack = rospkg.RosPack()
@@ -14,34 +15,51 @@ class Recognizer:
     def getDicesValue(self):
         # bridge = CvBridge()
         # frame = bridge.imgmsg_to_cv2(self.image, desired_encoding="bgr8")
-        frame = cv2.imread(imagesPath + "bp_recognizing_test.jpg")
+        frame = cv2.imread(imagesPath + "photo4-dices.jpg")
         # cv2.imshow("image", frame)
         # cv2.waitKey(0)
 
-        gray_img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # cv2.imshow("grayscale", gray_img)
+        # frame = frame[1900:2200, 1200:1450]
+        # cv2.imshow("cropped", frame)
         # cv2.waitKey(0)
 
-        ret,thresh = cv2.threshold(gray_img,150,255,cv2.THRESH_BINARY)
-        cv2.imshow("threshold", thresh)
+        r = 400.0 / frame.shape[1]
+        dim = dim = (400, int(frame.shape[0] * r))
+        frame = cv2.resize(frame, dim, interpolation = cv2.INTER_AREA)
+        cv2.imshow("resized", frame)
         cv2.waitKey(0)
 
-        crop_img = thresh[180:220, 120:150]
-        cv2.imshow("cropped", crop_img)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # cv2.imshow("grayscale", frame)
+        # cv2.waitKey(0)
+
+        ret,frame = cv2.threshold(frame, 30,255,cv2.THRESH_BINARY)
+        # cv2.imshow("threshold", frame)
+        # cv2.waitKey(0)
+
+        # frame = frame
+        # frame = cv2.Canny(frame,100,200)
+        # cv2.imshow("edges", frame)
+        # cv2.waitKey(0)
+        cv2.floodFill(frame, None, (0,0), 255);
+        cv2.imshow("floodfill", frame)
         cv2.waitKey(0)
 
-        r = 200.0 / crop_img.shape[1]
-        dim = dim = (200, int(crop_img.shape[0] * r))
-        resized_img = cv2.resize(crop_img, dim, interpolation = cv2.INTER_AREA)
-        cv2.imshow("resized", resized_img)
+        params = cv2.SimpleBlobDetector_Params()
+        params.minDistBetweenBlobs = 0
+        params.filterByArea = True
+        params.minArea = 1
+        params.minThreshold = 10;
+        params.maxThreshold = 200;
+        detector = cv2.SimpleBlobDetector(params)
+        keypoints = detector.detect(frame)
+        frame = cv2.drawKeypoints(frame, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+        print(len(keypoints))
+        cv2.imshow("blobs", frame)
         cv2.waitKey(0)
 
-        edges_img = resized_img
-        #edges_img = cv2.Canny(resized_img,100,200)
-        cv2.imshow("edges", edges_img)
-        cv2.waitKey(0)
-
-        contours, hierarchy = cv2.findContours(edges_img,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-        cv2.drawContours(edges_img, contours, -1, (0,255,0), 3)
-        cv2.imshow("contours", edges_img)
-        cv2.waitKey(0)
+        # contours, hierarchy = cv2.findContours(frame,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+        # cv2.drawContours(frame, contours, -1, (0,255,0), 3)
+        # cv2.imshow("contours", frame)
+        # cv2.waitKey(0)

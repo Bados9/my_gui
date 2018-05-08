@@ -61,19 +61,39 @@ class MainWindow():
         mapLabel = DescItem(self.scene, QTtoART(x=changeMapXCoord-430), QTtoART(y=changeMapYCoord+10), None)
         mapLabel.set_content("Selected map: ", 3)
         self.settingsItems.append(mapLabel)
+        
         playersLabel = DescItem(self.scene, QTtoART(x=changeMapXCoord-430), QTtoART(y=changeMapYCoord-100), None)
         playersLabel.set_content("Number of players: ", 3)
         self.settingsItems.append(playersLabel)
+        
+        self.settingsItems.append(ButtonItem(self.scene, QTtoART(x=changeMapXCoord), \
+            QTtoART(y=changeMapYCoord-100), "-", None, self.decreaseNoP, scale = 2))
+        
+        self.numberLabel = DescItem(self.scene, QTtoART(x=changeMapXCoord+0.5*changeMapXOffset), QTtoART(y=changeMapYCoord-100), None)
+        self.numberLabel.set_content(str(self.numberOfPlayers), 3)
+        self.settingsItems.append(self.numberLabel)
+        
+        self.settingsItems.append(ButtonItem(self.scene, QTtoART(x=changeMapXCoord+changeMapXOffset), \
+            QTtoART(y=changeMapYCoord-100), "+", None, self.increaseNoP, scale = 2))
+        
         self.settingsItems.append(ButtonItem(self.scene, 0.2, 0.4, "Back", None, self.toMainMenu, scale = 3))
-        numberLabel = DescItem(self.scene, QTtoART(x=changeMapXCoord-430), QTtoART(y=changeMapYCoord-100), None)
-        numberLabel.set_content("Number of players: ", 3)
-        self.settingsItems.append(numberLabel)
-        self.settingsItems.append(ButtonItem(self.scene, 0.2, 0.4, "Back", None, self.toMainMenu, scale = 3))
-        self.settingsItems.append(ButtonItem(self.scene, 0.2, 0.4, "Back", None, self.toMainMenu, scale = 3))
+        
         for item in self.settingsItems:
             self.scene.removeItem(item)
 
-        #self.mainMenuItems[0].cursor_click()
+        self.mainMenuItems[0].cursor_click()
+
+    def decreaseNoP(self, button):
+        self.numberOfPlayers -= 1
+        if self.numberOfPlayers < 2:
+            self.numberOfPlayers = 2
+        self.numberLabel.set_content(str(self.numberOfPlayers), 3)
+
+    def increaseNoP(self, button):
+        self.numberOfPlayers += 1
+        if self.numberOfPlayers > 4:
+            self.numberOfPlayers = 4
+        self.numberLabel.set_content(str(self.numberOfPlayers), 3)
 
     def changeStartingMap(self, button=None):
         self.startingMap = button.data

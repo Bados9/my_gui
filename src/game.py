@@ -637,7 +637,7 @@ class Player:
         self.game.drawTurnOfPlayerAnnouncement(self.color, "city")
 
     def setResourceForTrade(self, button):
-        print("klik na " + str(button.data))
+        #print("klik na " + str(button.data))
         if self.trade.resourceOne == "NONE":
             self.trade.resourceOne = button.data
             self.trade.resOneCount = 1
@@ -729,7 +729,7 @@ class Player:
                     self.dialog.set_caption("TRADING " + str(self.trade.resOneCount) + "x " + self.trade.resourceOne\
                     + "  FOR " + str(self.trade.resTwoCount) + "x " + self.trade.resourceTwo \
                     + "\n WAITING FOR AGREEMENT FROM SECOND PLAYER")
-                else:
+                elif whereIsIt(self.dialog.pos()) in self.game.colors[:len(self.game.players)]:
                     self.tradeSupplies(self.trade, whereIsIt(self.dialog.pos()))
                     self.game.scene.removeItem(self.dialog)
                     self.dialog = None    
@@ -920,7 +920,7 @@ class Game:
             self.map = self.loadMap(loadMapSlot)
         self.players = self.createPlayers(numberOfPlayers) #TODO zmenit
         self.items = []
-        self.turnNumber = -1
+        self.turnNumber = 8-1
         self.endOfTurn = False
         self.recognizer = Recognizer()
         self.playerTurnMarks = [None] * 4
@@ -981,7 +981,7 @@ class Game:
         return defaultMap
 
     def createEmptyMap(self):
-        emptyMap = Map(self.scene, self, editor=True)
+        emptyMap = Map(self.scene, game = self)
         emptyMap.addTile("NONE",[0,0],0)
         emptyMap.addTile("NONE",[1,0],1)
         emptyMap.addTile("NONE",[2,0],2)
@@ -1120,15 +1120,16 @@ class Game:
 
         else:           
             #TODO kontrola konce hry
+            self.drawTurnOfPlayerAnnouncement(self.colors[self.turnNumber%len(self.colors)])
             self.announcementArea.set_content("")
             self.announcementArea2.set_content("")
             self.players[self.colors[self.turnNumber%len(self.colors)]].enablePlayerUI()
             print("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player.")
             #hod kostkama
-            # number = self.recognizer.getDicesValue()
-            number1 = randint(1,6)
-            number2 = randint(1,6)
-            number = number1 + number2
+            number = self.recognizer.getDicesValue()
+            # number1 = randint(1,6)
+            # number2 = randint(1,6)
+            # number = number1 + number2
             if number == 7:
                 self.map.changeToRobberMode()
             # rozdeleni surovin
@@ -1139,9 +1140,7 @@ class Game:
             #stavba
 
 def main():
-    game = Game()
-    game.distributeSupplies(5)
-    game.printGameStatus()
+    pass
 
 if __name__ == "__main__":
     main()
