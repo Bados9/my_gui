@@ -920,7 +920,7 @@ class Game:
             self.map = self.loadMap(loadMapSlot)
         self.players = self.createPlayers(numberOfPlayers) #TODO zmenit
         self.items = []
-        self.turnNumber = 8-1
+        self.turnNumber = -1
         self.endOfTurn = False
         self.recognizer = Recognizer()
         self.playerTurnMarks = [None] * 4
@@ -1082,6 +1082,7 @@ class Game:
     def endTurn(self, button=None):
         self.nextTurnBtn.set_caption("Next turn")
         self.nextTurnBtn2.set_caption("Next turn")
+        time.sleep(0.2)
         self.nextTurnBtn.set_cb(self.nextTurn)
         self.nextTurnBtn2.set_cb(self.nextTurn)
         self.players[self.colors[self.turnNumber%len(self.colors)]].disablePlayerUI()
@@ -1096,7 +1097,15 @@ class Game:
         self.map.updateMap()
         for tile in self.map.tiles:
             tile.unsetFocus()
+        if self.turnNumber == -1:
+            self.nextTurnBtn2.set_enabled(False)
+            self.nextTurnBtn.set_enabled(False)
         self.turnNumber += 1
+
+        if self.turnNumber == len(self.colors)*2:
+            self.nextTurnBtn2.set_enabled(True)
+            self.nextTurnBtn.set_enabled(True)
+
         if self.endOfTurn:
             self.turnNumber -= 1
         if self.turnNumber <= len(self.colors)*2-1:

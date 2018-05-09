@@ -23,6 +23,8 @@ class MapEditor:
         self.mainWindow = mainWindow
         self.noMoreTiles = []
 
+        TouchTableItem(self.scene, '/art/interface/touchtable/touch')
+
         self.map.drawMap()
         self.drawUI()
 
