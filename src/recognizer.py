@@ -13,12 +13,12 @@ class Recognizer:
 
     def __init__(self):
         self.image = None
-        rospy.Subscriber('/art/localhost/kinect2/hd/image_color_rect', Image, self.imgCallback)
+        # rospy.Subscriber('/art/localhost/kinect2/hd/image_color_rect', Image, self.imgCallback)
         
     def getDicesValue(self):
-        bridge = CvBridge()
-        frame = bridge.imgmsg_to_cv2(self.image, desired_encoding="bgr8")
-        #frame = cv2.imread(imagesPath + "photo4-dices.jpg")
+        # bridge = CvBridge()
+        # frame = bridge.imgmsg_to_cv2(self.image, desired_encoding="bgr8")
+        frame = cv2.imread(imagesPath + "photo4-dices.jpg")
         cv2.imshow("image", frame)
         cv2.waitKey(0)
 

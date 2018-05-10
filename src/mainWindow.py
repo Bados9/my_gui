@@ -81,7 +81,7 @@ class MainWindow():
         for item in self.settingsItems:
             self.scene.removeItem(item)
 
-        self.mainMenuItems[0].cursor_click()
+        #self.mainMenuItems[0].cursor_click()
 
     def decreaseNoP(self, button):
         self.numberOfPlayers -= 1

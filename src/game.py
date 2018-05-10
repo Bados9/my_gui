@@ -253,7 +253,6 @@ class Tile:
                 self.setAreaType, image_path=imagesPath + self.areaType + ".png", scale=8.5,\
                 background_color=QtCore.Qt.transparent, data=self.index)
             self.tileBtn.h = 180
-
         
         if self.number > 0:
             XOffset = 40 
@@ -262,7 +261,7 @@ class Tile:
             self.numberBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]+XOffset), QTtoART(y=self.coords[1]+30), \
                 str(self.number), None, self.changeFocus, scale=3,\
                 background_color=QtCore.Qt.transparent, data=self.index)
-        elif self.number == 0:
+        elif self.number == 0 or self.number == -1:
             self.numberBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]+30), QTtoART(y=self.coords[1]+30), \
                "", None, self.changeFocus, scale=3,\
                 background_color=QtCore.Qt.transparent, data=self.index)
@@ -283,11 +282,17 @@ class Tile:
                 str(self.number), None, self.changeFocus, scale=3, image_path=imagesPath + "butt_crossroad_black.png",\
                 background_color=QtCore.Qt.transparent)
 
-    def setAreaType(self, button=None):
-        print("tile areaType changed to " + str(self.map.selectedAreaType))
-        self.areaType = self.map.selectedAreaType
-        self.editorInstance.checkCounts()
-        self.drawTileBtn(75)
+    def setAreaType(self, button=None, changeTo=None):
+        if changeTo is not None:
+            self.areaType = changeTo
+            print("tile areaType changed to " + str(changeTo))
+        else:
+            self.areaType = self.map.selectedAreaType
+            print("tile areaType changed to " + str(self.map.selectedAreaType))
+        self.supplyType = areaSupplyDict[self.areaType]
+        if self.editor:
+            self.editorInstance.checkCounts()
+            self.drawTileBtn(75)
 
     def set_cb_toChangeFocus(self):
         self.tileBtn.set_cb(self.changeFocus)
@@ -337,6 +342,13 @@ class Tile:
                     if settlement is not None:
                         self.scene.removeItem(settlement)
                         self.settlementIcons[index] = None
+
+            if self.number == 0:
+                self.numberBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]+30), QTtoART(y=self.coords[1]+30), \
+                   "", None, self.changeFocus, scale=3,\
+                    background_color=QtCore.Qt.transparent, data=self.index)
+                self.numberBtn.w = 105
+                self.drawRobber()
 
     def changeFocus(self, button=None):
         if self.focus == True:
@@ -397,6 +409,10 @@ class Tile:
                 self.scene.removeItem(self.settlementIcons[button.data])
 
     def giveSupplies(self, game):
+        print("index: " + str(self.index))
+        print("supplytype: " + self.supplyType)
+        if self.supplyType == "NONE":
+            return
         for index in self.adjacentBuildings:
             if self.map.places[index] is not None:
                 game.giveSupplyToPlayer(self.map.places[index].color, self.supplyType)
@@ -418,7 +434,7 @@ class Map:
         self.buildMode = "settlement"
         self.selectedAreaType = "NONE"
         self.editor = editor
-        self.robber = 9
+        self.robber = 2
         self.editorInstance = editorInstance
 
     def changeSelectedAreaType(self, button=None):
@@ -474,13 +490,19 @@ class Map:
         self.updateMap()
         self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["settlements"] -= 1
         if self.game.turnNumber <= len(self.game.colors)*2-1:
+            tiles = []
+            for key, value in adjBuildings.items():
+                if number in value:
+                    tiles.append(key)
+            for tileNumber in tiles:
+                self.tiles[tileNumber].giveSupplies(self.game)
             self.game.nextTurn()
         else:
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "BRICK")
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "LUMBER")
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "WOOL")
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
-            self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
+            #self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
 
         self.game.checkGameEnd()
 
@@ -498,7 +520,7 @@ class Map:
         self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "ORE")
         self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
         self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
-        self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
+        #self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
 
         self.game.checkGameEnd()
 
@@ -511,7 +533,7 @@ class Map:
         else:
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "BRICK")
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "LUMBER")
-            self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
+            #self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
 
     def updateMap(self):
         for tile in self.tiles:
@@ -530,7 +552,7 @@ class Map:
 class Player:
     def __init__(self, color, corner, game):
         self.game = game
-        self.supplyCards = {"BRICK":10,"GRAIN":10,"LUMBER":10,"ORE":10,"WOOL":10} 
+        self.supplyCards = {"BRICK":0,"GRAIN":0,"LUMBER":0,"ORE":0,"WOOL":0} 
         self.actionCards = None
         self.color = color #barva figurky
         self.corner = corner
@@ -543,12 +565,14 @@ class Player:
 
     def addSupplyCard(self, supplyType):
         self.supplyCards[supplyType] += 1
+        self.updatePlayerUI()
 
     def removeSupplyCard(self, supplyType):
         if (self.supplyCards[supplyType] == 0):
             print("ERROR: no more cards of this type (" + supplyType + ")")
         else:
             self.supplyCards[supplyType] -= 1
+            self.updatePlayerUI()
 
     def addActionCard(self, supplyType):
         pass
@@ -1012,7 +1036,8 @@ class Game:
 
         temp = file.read().splitlines()
         for tile in loadedMap.tiles:
-            tile.areaType = temp[tile.index]
+            tile.setAreaType(changeTo=temp[tile.index])
+            print("menime na " + temp[tile.index])
         numbers = temp[19].split(',')
         numberList = []
         for num in numbers[:19]:
@@ -1037,6 +1062,7 @@ class Game:
         else:
             self.supplyCards[supplyType] -= 1
             self.players[color].addSupplyCard(supplyType)
+
 
     def takeSupplyFromPlayer(self, color, supplyType):
         if self.players[color].supplyCards[supplyType] == 0:
@@ -1136,9 +1162,9 @@ class Game:
             print("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player.")
             #hod kostkama
             number = self.recognizer.getDicesValue()
-            # number1 = randint(1,6)
-            # number2 = randint(1,6)
-            # number = number1 + number2
+            number1 = randint(1,6)
+            number2 = randint(1,6)
+            number = number1 + number2
             if number == 7:
                 self.map.changeToRobberMode()
             # rozdeleni surovin
