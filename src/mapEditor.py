@@ -7,9 +7,7 @@ from items import *
 
 def QTtoART(x=None,y=None):
     if y is None:
-        #print("x = " + str(x/2000.0))
         return x/2000.0
-    #print("y = " + str(0.60 - y/2000.0))
     return 0.60 - y/2000.0
 
 rospack = rospkg.RosPack()
@@ -207,5 +205,4 @@ class MapEditor:
 
     def exitEditor(self, button):
         self.scene.clear()
-        self.mainWindow.toMainMenu()
-        pass
+        self.mainWindow.toMainMenu(fromEditor=True)

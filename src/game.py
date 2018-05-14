@@ -274,10 +274,12 @@ class Tile:
             self.numberBtn.set_cb(self.setAreaType)
 
     def deleteRobber(self, button=None):
-        self.scene.removeItem(self.robberIcon)
-        self.robberIcon = None
+        if self.robberIcon != None:
+            self.scene.removeItem(self.robberIcon)
+            self.robberIcon = None
 
     def drawRobber(self, button=None):
+        self.deleteRobber()
         self.robberIcon = ButtonItem(self.scene, QTtoART(x=self.coords[0]+40), QTtoART(y=self.coords[1]+30), \
                 str(self.number), None, self.changeFocus, scale=3, image_path=imagesPath + "butt_crossroad_black.png",\
                 background_color=QtCore.Qt.transparent)
@@ -285,10 +287,8 @@ class Tile:
     def setAreaType(self, button=None, changeTo=None):
         if changeTo is not None:
             self.areaType = changeTo
-            print("tile areaType changed to " + str(changeTo))
         else:
             self.areaType = self.map.selectedAreaType
-            print("tile areaType changed to " + str(self.map.selectedAreaType))
         self.supplyType = areaSupplyDict[self.areaType]
         if self.editor:
             self.editorInstance.checkCounts()
@@ -331,7 +331,6 @@ class Tile:
             for index, corner in enumerate(corners):
                 if self.map.roads[self.adjacentRoads[index]] is not None:
                     if self.roadIcons[index] is None:
-                        #print("davam cestu na roh " + str(index) + " u policka " + str(self.index))
                         self.roadIcons[index] = (ButtonItem(self.scene, QTtoART(x=corners[index][0]), QTtoART(y=corners[index][1]),"", \
                             None, doNothing, background_color=QtCore.Qt.transparent, image_path = imagesPath+"road_"
                              + self.map.roads[self.adjacentRoads[index]].color + ".png"))
@@ -393,12 +392,10 @@ class Tile:
         self.focus = False
 
     def buildSettlement(self, button=None):
-        #print("kliknulo se na krizovatku c." + str(self.adjacentBuildings[button.data]))
         if self.map.buildMode == "settlement":
             self.map.buildSettlement(self.adjacentBuildings[button.data])
 
     def buildRoad(self, button=None):
-        #print("kliknulo se na cestu c. " + str(self.adjacentRoads[button.data]))
         if self.map.buildMode == "road":
             self.map.buildRoad(self.adjacentRoads[button.data])
 
@@ -408,14 +405,15 @@ class Tile:
             if (self.settlementIcons[button.data]) is not None:
                 self.scene.removeItem(self.settlementIcons[button.data])
 
-    def giveSupplies(self, game):
-        print("index: " + str(self.index))
-        print("supplytype: " + self.supplyType)
+    def giveSupplies(self, game, state="game"):
         if self.supplyType == "NONE":
             return
         for index in self.adjacentBuildings:
             if self.map.places[index] is not None:
-                game.giveSupplyToPlayer(self.map.places[index].color, self.supplyType)
+                if state == "initial" and self.map.places[index].color == game.colors[game.turnNumber%len(game.colors)]:
+                    game.giveSupplyToPlayer(self.map.places[index].color, self.supplyType)
+                elif state == "game":
+                    game.giveSupplyToPlayer(self.map.places[index].color, self.supplyType)
                 if self.map.places[index].type == "city":
                     game.giveSupplyToPlayer(self.map.places[index].color, self.supplyType)
 
@@ -434,11 +432,10 @@ class Map:
         self.buildMode = "settlement"
         self.selectedAreaType = "NONE"
         self.editor = editor
-        self.robber = 2
+        self.robber = 9
         self.editorInstance = editorInstance
 
     def changeSelectedAreaType(self, button=None):
-        print("selectedArea changed to " + str(button.data))
         self.selectedAreaType = button.data
 
     def addTile(self, areaType, position, index):
@@ -457,7 +454,6 @@ class Map:
         self.game.announcementArea.set_content("     MOVE ROBBER", 3)
 
     def moveRobber(self, button=None):
-        #print("presouvame z " + str(self.robber) + " na " + str(button.data))
         self.tiles[self.robber].deleteRobber()
         self.robber = button.data
         self.tiles[self.robber].drawRobber()
@@ -495,14 +491,13 @@ class Map:
                 if number in value:
                     tiles.append(key)
             for tileNumber in tiles:
-                self.tiles[tileNumber].giveSupplies(self.game)
+                self.tiles[tileNumber].giveSupplies(self.game, state="initial")
             self.game.nextTurn()
         else:
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "BRICK")
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "LUMBER")
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "WOOL")
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
-            #self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
 
         self.game.checkGameEnd()
 
@@ -520,7 +515,6 @@ class Map:
         self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "ORE")
         self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
         self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
-        #self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
 
         self.game.checkGameEnd()
 
@@ -533,7 +527,6 @@ class Map:
         else:
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "BRICK")
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "LUMBER")
-            #self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].updatePlayerUI()
 
     def updateMap(self):
         for tile in self.tiles:
@@ -661,7 +654,6 @@ class Player:
         self.game.drawTurnOfPlayerAnnouncement(self.color, "city")
 
     def setResourceForTrade(self, button):
-        #print("klik na " + str(button.data))
         if self.trade.resourceOne == "NONE":
             self.trade.resourceOne = button.data
             self.trade.resOneCount = 1
@@ -933,21 +925,21 @@ class Player:
 
 class Game: 
     def __init__(self, scene, loadMapSlot, numberOfPlayers):
-        #print("hra zacina na mape ze slotu " + str(loadMapSlot))
         self.scene = scene
         self.colors = ["blue", "green", "red", "yellow"]
         self.supplyCards = self.createStartingSupplyCards() #pole karet zasob
         self.actionCards = self.createStartingActionCards()
         if loadMapSlot == "default":
-            self.map = self.createDefaultMap() #TODO zmenit
+            self.map = self.createDefaultMap()
         else:
             self.map = self.loadMap(loadMapSlot)
-        self.players = self.createPlayers(numberOfPlayers) #TODO zmenit
+        self.players = self.createPlayers(numberOfPlayers)
         self.items = []
         self.turnNumber = -1
         self.endOfTurn = False
         self.recognizer = Recognizer()
         self.playerTurnMarks = [None] * 4
+        self.numberMark = None
 
         #TODO na vymazani pak
         self.rect = QtGui.QGraphicsRectItem(0,0,2000, 1200)
@@ -955,7 +947,6 @@ class Game:
         self.rect.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
         self.scene.addItem(self.rect)
         
-        #self.scene.setBackgroundBrush(QtGui.QBrush(QtGui.QColor(30,144,255)))
         self.scene.setBackgroundBrush(QtCore.Qt.black)
 
         self.announcementArea = DescItem(self.scene, QTtoART(x=750), QTtoART(y=980), None)
@@ -1037,12 +1028,12 @@ class Game:
         temp = file.read().splitlines()
         for tile in loadedMap.tiles:
             tile.setAreaType(changeTo=temp[tile.index])
-            print("menime na " + temp[tile.index])
         numbers = temp[19].split(',')
         numberList = []
         for num in numbers[:19]:
             numberList.append(int(num))
         loadedMap.setTileNumbers(arg=numberList)
+        loadedMap.robber = temp.index("DESERT")
         file.close()
         return loadedMap
 
@@ -1081,7 +1072,7 @@ class Game:
             if self.map.tiles[i].index != self.map.robber:
                 self.map.tiles[i].giveSupplies(self)
 
-    def drawTurnOfPlayerAnnouncement(self, color, mode="road"):
+    def drawTurnOfPlayerAnnouncement(self, color, mode="road", number=0):
         for mark in self.playerTurnMarks:
             if mark != None:
                 self.scene.removeItem(mark)
@@ -1098,6 +1089,12 @@ class Game:
             if mark != None:
                 mark.h = 150
 
+        if number != 0:
+            if self.numberMark != None:
+                self.scene.removeItem(self.numberMark)
+            self.numberMark = ButtonItem(self.scene, QTtoART(x=500), QTtoART(y=800), str(number), \
+             None, doNothing, background_color=QtCore.Qt.transparent, scale=4)
+
     def checkGameEnd(self):
         for key, player in self.players.items():
             player.countPoints()
@@ -1108,13 +1105,14 @@ class Game:
     def endTurn(self, button=None):
         self.nextTurnBtn.set_caption("Next turn")
         self.nextTurnBtn2.set_caption("Next turn")
-        time.sleep(0.2)
+        time.sleep(0.25)
         self.nextTurnBtn.set_cb(self.nextTurn)
         self.nextTurnBtn2.set_cb(self.nextTurn)
         self.players[self.colors[self.turnNumber%len(self.colors)]].disablePlayerUI()
         #self.nextTurn()
 
     def nextTurn(self, button=None):
+        time.sleep(0.25)
         self.nextTurnBtn.set_caption("End turn")
         self.nextTurnBtn2.set_caption("End turn")
         self.nextTurnBtn.set_cb(self.endTurn)
@@ -1155,16 +1153,17 @@ class Game:
 
         else:           
             #TODO kontrola konce hry
-            self.drawTurnOfPlayerAnnouncement(self.colors[self.turnNumber%len(self.colors)])
             self.announcementArea.set_content("")
             self.announcementArea2.set_content("")
             self.players[self.colors[self.turnNumber%len(self.colors)]].enablePlayerUI()
-            print("Turn of " + self.colors[self.turnNumber%len(self.colors)] + " player.")
             #hod kostkama
-            number = self.recognizer.getDicesValue()
-            number1 = randint(1,6)
-            number2 = randint(1,6)
-            number = number1 + number2
+            #number = self.recognizer.getDicesValue()
+            # number1 = randint(1,6)
+            # number2 = randint(1,6)
+            # number = number1 + number2
+            number=7
+            self.drawTurnOfPlayerAnnouncement(self.colors[self.turnNumber%len(self.colors)], number=number)
+            
             if number == 7:
                 self.map.changeToRobberMode()
             # rozdeleni surovin

@@ -81,8 +81,6 @@ class MainWindow():
         for item in self.settingsItems:
             self.scene.removeItem(item)
 
-        #self.mainMenuItems[0].cursor_click()
-
     def decreaseNoP(self, button):
         self.numberOfPlayers -= 1
         if self.numberOfPlayers < 2:
@@ -116,13 +114,14 @@ class MainWindow():
                 self.scene.removeItem(item)
             self.mapMenuHidden = True
 
-    def toMainMenu(self, button=None):
+    def toMainMenu(self, button=None, fromEditor=False):
         for item in self.settingsItems:
             self.scene.removeItem(item)
 
         for item in self.mainMenuItems:
             self.scene.addItem(item)
-        self.toggleChangeMapMenu()
+        if fromEditor == False:
+            self.toggleChangeMapMenu()
 
     def toSettings(self, event):
         for item in self.mainMenuItems:

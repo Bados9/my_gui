@@ -3,13 +3,14 @@
 import sys
 import signal
 import rospy
-import rospkg
 from PyQt4 import QtGui, QtCore, QtNetwork
 from art_projected_gui.helpers import ProjectorHelper
-from items import *
+from art_msgs.srv import TouchCalibrationPoints, TouchCalibrationPointsResponse
+from std_msgs.msg import Empty, Bool
+from std_srvs.srv import Empty as EmptySrv, EmptyRequest
 from mainWindow import MainWindow
-from art_msgs.msg import Touch
 
+#rosrun image_view image_view image:=/usb_cam/image_raw
 class customGraphicsView(QtGui.QGraphicsView):
 
     def __init__(self, parent=None):
@@ -40,13 +41,27 @@ class MyGui(QtCore.QObject):
 
         self.scene = QtGui.QGraphicsScene(0, 0, int(w), int(h))
         self.scene.rpm = rpm
-        self.scene.setBackgroundBrush(QtCore.Qt.blue)
+        self.scene.setBackgroundBrush(QtCore.Qt.black)
 
         self.view = customGraphicsView(self.scene)
         self.view.setRenderHint(QtGui.QPainter.Antialiasing)
         self.view.setViewportUpdateMode(QtGui.QGraphicsView.FullViewportUpdate)
         self.view.setStyleSheet("QGraphicsView { border-style: none; }")
 
+        self.touch_calib_srv = rospy.Service(
+            '/art/interface/projected_gui/touch_calibration', TouchCalibrationPoints, self.touch_calibration_points_cb)
+        self.touched_sub = None
+        self.projectors_calibrated_pub = rospy.Publisher('/art/interface/projected_gui/app/projectors_calibrated', Bool, queue_size=10, latch=True)
+        
+        
+        self.calibrating_touch = False
+        self.touch_calibration_points = None
+        QtCore.QObject.connect(self, QtCore.SIGNAL(
+            'touch_calibration_points_evt'), self.touch_calibration_evt)
+        self.point_item = None
+        
+        touch_calibrated = rospy.wait_for_message("/art/interface/touchtable/calibrated", Bool).data
+        
         self.tcpServer = QtNetwork.QTcpServer(self)
         if not self.tcpServer.listen(port=self.port):
             rospy.logerr(
@@ -62,21 +77,90 @@ class MyGui(QtCore.QObject):
             self.send_to_clients_evt)
         self.scene_timer.start(1.0 / 15 * 1000)
 
-        #self.projectors = [ProjectorHelper("n2")]
-        self.projectors = []
+        self.projectors = [ProjectorHelper("localhost")]
+
         rospy.loginfo("Waiting for projector nodes...")
         for proj in self.projectors:
-                proj.wait_until_available()
-                if not proj.is_calibrated():
-                    rospy.loginfo("Starting calibration of projector: " + proj.proj_id)
-                    proj.calibrate(self.calibrated_cb)
-                else:
-                    rospy.loginfo("Projector " + proj.proj_id + " already calibrated.")
-        rospy.loginfo("Done")
-
+            proj.wait_until_available()
+            if not proj.is_calibrated():
+                rospy.loginfo("Starting calibration of projector: " + proj.proj_id)
+                b = Bool()
+                b.data = False
+                self.projectors_calibrated_pub.publish(b)
+                proj.calibrate(self.calibrated_cb)                    
+            else:
+                rospy.loginfo("Projector " + proj.proj_id + " already calibrated.")
+                
+        if not touch_calibrated:
+            rospy.wait_for_service('/art/interface/touchtable/calibrate')
+            rospy.loginfo(
+                'Get /art/interface/touchtable/calibrate service')
+            self.calibrate_table_srv_client = rospy.ServiceProxy('/art/interface/touchtable/calibrate', EmptySrv)
+            req = EmptyRequest()            
+            self.calibrate_table_srv_client.call(req)
+            
+        
+        
         rospy.loginfo("Ready")
 
+    def touch_calibration_points_cb(self, req):
+        for it in self.scene.items():
+
+            it.setVisible(False) 
+        
+        self.touched_sub = rospy.Subscriber(
+            '/art/interface/touchtable/touch_detected', Empty, self.touch_detected_cb, queue_size=10)
+        
+        self.touch_calibration_points = []
+        for pt in req.points:
+
+            self.touch_calibration_points.append((pt.point.x, pt.point.y))
+	print req.points
+        self.emit(QtCore.SIGNAL('touch_calibration_points_evt'))
+        resp = TouchCalibrationPointsResponse()
+        resp.success = True
+        return resp
+
+
+    def touch_calibration_evt(self):
+        self.touch_calibrating = True
+        try:
+            p = self.touch_calibration_points.pop(0)
+            self.point_item = QtGui.QGraphicsEllipseItem(0, 0, 0.01*self.scene.rpm, 0.01*self.scene.rpm, None, self.scene)
+            self.point_item.setBrush(QtGui.QBrush(QtCore.Qt.white, style = QtCore.Qt.SolidPattern))
+            self.point_item.setPos(p[0]*self.scene.rpm, (self.height - p[1])*self.scene.rpm)
+        except IndexError:
+            for it in self.scene.items():
+
+                # TODO fix this - in makes visible even items that are invisible by purpose
+                it.setVisible(True)
+                self.touched_sub.unregister()
+                
+
+
+    def touch_detected_cb(self, data):
+        try:
+            p = self.touch_calibration_points.pop(0)
+            #self.scene.removeItem(self.point_item)
+            #del self.point_item
+            #self.point_item = QtGui.QGraphicsEllipseItem(p[0]*self.scene.rpm, p[1]*self.scene.rpm, 0.01*self.scene.rpm, 0.01*self.scene.rpm, None, self.scene)
+            self.point_item.setPos(p[0]*self.scene.rpm, (self.height - p[1])*self.scene.rpm)
+            #self.point_item.setBrush(QtGui.QBrush(QtCore.Qt.white, style = QtCore.Qt.SolidPattern))
+        except IndexError:
+            self.scene.removeItem(self.point_item)
+            del self.point_item
+            for it in self.scene.items():
+                
+                # TODO fix this - in makes visible even items that are invisible by purpose
+                it.setVisible(True)
+                self.touched_sub.unregister()
+
+
     def calibrated_cb(self, proj):
+        b = Bool()
+        b.data = True
+        self.projectors_calibrated_pub.publish(b)
+        
 
         rospy.loginfo("Projector " + proj.proj_id + " calibrated: " + str(proj.is_calibrated()))
 
@@ -131,10 +215,12 @@ class MyGui(QtCore.QObject):
 
         self.view.show()
 
+
 def sigint_handler(*args):
     """Handler for the SIGINT signal."""
     sys.stderr.write('\r')
-    QtGui.QApplication.quit()   
+    QtGui.QApplication.quit()
+
 
 def main(args):
 
