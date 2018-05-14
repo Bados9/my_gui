@@ -16,10 +16,10 @@ class Recognizer:
         rospy.Subscriber('/art/localhost/kinect2/hd/image_color_rect', Image, self.imgCallback)
         
     def getDicesValue(self):
-        bridge = CvBridge()
-        frame = bridge.imgmsg_to_cv2(self.image, desired_encoding="bgr8")
-
-        frame = frame[300:500, 700:1000]
+        # bridge = CvBridge()
+        # frame = bridge.imgmsg_to_cv2(self.image, desired_encoding="bgr8")
+        frame = cv2.imread(imagesPath+"photo3-dices.jpg")
+        # frame = frame[300:500, 700:1000]
 
         r = 500.0 / frame.shape[1]
         dim = dim = (500, int(frame.shape[0] * r))
@@ -28,7 +28,8 @@ class Recognizer:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         ret,frame = cv2.threshold(frame, 130,255,cv2.THRESH_BINARY)
-
+        cv2.imshow("first", frame)
+        cv2.waitKey(0)
         height, width = frame.shape[:2]
         cv2.floodFill(frame, None, (0,0), 255)
         cv2.floodFill(frame, None, (0,height-1), 255)
@@ -47,8 +48,10 @@ class Recognizer:
         params.minThreshold = 10;
         params.maxThreshold = 200;
 
-        detector = cv2.SimpleBlobDetector_create(params)
+        #detector = cv2.SimpleBlobDetector_create(params)
+        detector = cv2.SimpleBlobDetector(params)
         keypoints = detector.detect(frame)
         frame = cv2.drawKeypoints(frame, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-
+        cv2.imshow("second", frame)
+        cv2.waitKey(0)
         return len(keypoints)

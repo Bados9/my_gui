@@ -935,7 +935,7 @@ class Game:
             self.map = self.loadMap(loadMapSlot)
         self.players = self.createPlayers(numberOfPlayers)
         self.items = []
-        self.turnNumber = -1
+        self.turnNumber = 8-1
         self.endOfTurn = False
         self.recognizer = Recognizer()
         self.playerTurnMarks = [None] * 4
@@ -1157,7 +1157,7 @@ class Game:
             self.announcementArea2.set_content("")
             self.players[self.colors[self.turnNumber%len(self.colors)]].enablePlayerUI()
             #hod kostkama
-            #number = self.recognizer.getDicesValue()
+            number = self.recognizer.getDicesValue()
             # number1 = randint(1,6)
             # number2 = randint(1,6)
             # number = number1 + number2
