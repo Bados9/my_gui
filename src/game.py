@@ -545,7 +545,7 @@ class Map:
 class Player:
     def __init__(self, color, corner, game):
         self.game = game
-        self.supplyCards = {"BRICK":100,"GRAIN":100,"LUMBER":100,"ORE":100,"WOOL":100} 
+        self.supplyCards = {"BRICK":0,"GRAIN":0,"LUMBER":0,"ORE":0,"WOOL":0} 
         self.color = color #barva figurky
         self.corner = corner
         self.buildings = {"roads":15, "settlements":5, "cities":4}
@@ -920,7 +920,6 @@ class Game:
         self.scene = scene
         self.colors = ["blue", "green", "red", "yellow"]
         self.supplyCards = self.createStartingSupplyCards() #pole karet zasob
-        self.actionCards = self.createStartingActionCards()
         if loadMapSlot == "default":
             self.map = self.createDefaultMap()
         else:
@@ -1056,6 +1055,7 @@ class Game:
     def drawTurnOfPlayerAnnouncement(self, color, mode="road", number=0):
         for mark in self.playerTurnMarks:
             if mark != None:
+                print "mazu"
                 self.scene.removeItem(mark)
 
         self.playerTurnMarks[0] = ButtonItem(self.scene, QTtoART(x=500), QTtoART(y=800), "", None, doNothing, \
@@ -1069,13 +1069,13 @@ class Game:
         for mark in self.playerTurnMarks:
             if mark != None:
                 mark.h = 150
+        self.drawNumberMarks(number)
 
-        if number != 0 or mode != "road":
+    def drawNumberMarks(self, number):
+        if number != 0:
             for mark in self.numberMarks:
                 if mark != None:
                     self.scene.removeItem(mark)
-
-        if number != 0:
             self.numberMarks[0] = ButtonItem(self.scene, QTtoART(x=500), QTtoART(y=800), str(number), \
              None, doNothing, background_color=QtCore.Qt.transparent, scale=4)
             self.numberMarks[1] = ButtonItem(self.scene, QTtoART(x=1350), QTtoART(y=800), str(number), \
@@ -1087,6 +1087,10 @@ class Game:
             self.numberMarks[2].setRotation(180)
             self.numberMarks[3].setRotation(180)
 
+            for item in self.numberMarks:
+                self.scene.removeItem(item)
+            for item in self.numberMarks:
+                self.scene.addItem(item)
     def checkGameEnd(self):
         for key, player in self.players.items():
             player.countPoints()
@@ -1154,8 +1158,8 @@ class Game:
             self.announcementArea2.set_content("")
             self.players[self.colors[self.turnNumber%len(self.colors)]].enablePlayerUI()
             #hod kostkama
-            number = self.recognizer.getDicesValue()
-            
+            #number = self.recognizer.getDicesValue()
+            number = 8
             self.drawTurnOfPlayerAnnouncement(self.colors[self.turnNumber%len(self.colors)], number=number)
             
             if number == 7:
