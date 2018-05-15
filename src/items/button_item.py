@@ -8,15 +8,15 @@ translate = QtCore.QCoreApplication.translate
 
 class ButtonItem(Item):
 
-    def __init__(self, scene, x, y, caption, parent, clicked, scale=1.0, background_color=QtCore.Qt.green, width=None, push_button=False, image_path=None, data=None):
+    def __init__(self, scene, x, y, caption, parent, clicked, scale=1.0, background_color=QtCore.Qt.green, width=None, push_button=False, image_path=None, data=None, text_color="black"):
 
         self.background_color = background_color
         self.scale = scale
         self.clicked = clicked
         self.push_button = push_button
         self.pressed = False
-	self.data = data
-
+        self.data = data
+        self.color = text_color
         self.img = None
 
         self.w = 0
@@ -127,6 +127,9 @@ class ButtonItem(Item):
         painter.drawRoundedRect(rect, 10.0 * self.scale, 10.0 * self.scale)
 
         pen.setStyle(QtCore.Qt.SolidLine)
+        
+        if self.color != "black":
+            pen.setColor(QtCore.Qt.white)
         painter.setPen(pen)
 
         if self.img is not None:

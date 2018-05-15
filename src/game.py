@@ -401,8 +401,8 @@ class Tile:
 
     def buildCity(self, button=None):
         if self.map.buildMode == "city":
-            self.map.buildCity(self.adjacentBuildings[button.data])
-            if (self.settlementIcons[button.data]) is not None:
+            ret = self.map.buildCity(self.adjacentBuildings[button.data])
+            if (self.settlementIcons[button.data]) is not None and ret == True:
                 self.scene.removeItem(self.settlementIcons[button.data])
 
     def giveSupplies(self, game, state="game"):
@@ -485,6 +485,7 @@ class Map:
         self.places[number] = Building("settlement", self.game.colors[self.game.turnNumber%len(self.game.colors)])
         self.updateMap()
         self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["settlements"] -= 1
+        self.game.checkGameEnd()
         if self.game.turnNumber <= len(self.game.colors)*2-1:
             tiles = []
             for key, value in adjBuildings.items():
@@ -499,24 +500,23 @@ class Map:
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "WOOL")
             self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
 
-        self.game.checkGameEnd()
-
     def buildCity(self, number):
         if self.game.turnNumber <= len(self.game.colors)*2-1:
-            return
-
+            return False
+        if self.places[number].color != self.game.colors[self.game.turnNumber%len(self.game.colors)]:
+            return False
         self.places[number] = Building("city", self.game.colors[self.game.turnNumber%len(self.game.colors)])
         self.updateMap()
         self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["cities"] -= 1
         self.game.players[self.game.colors[self.game.turnNumber%len(self.game.colors)]].buildings["settlements"] += 1
-
-        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "ORE")
-        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "ORE")
-        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "ORE")
-        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
-        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
-
         self.game.checkGameEnd()
+
+        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "ORE")
+        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "ORE")
+        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "ORE")
+        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
+        self.game.takeSupplyFromPlayer(self.game.colors[self.game.turnNumber%len(self.game.colors)], "GRAIN")
+        return True
 
     def buildRoad(self, number):
         self.roads[number] = Building("road", self.game.colors[self.game.turnNumber%len(self.game.colors)])
@@ -545,8 +545,7 @@ class Map:
 class Player:
     def __init__(self, color, corner, game):
         self.game = game
-        self.supplyCards = {"BRICK":0,"GRAIN":0,"LUMBER":0,"ORE":0,"WOOL":0} 
-        self.actionCards = None
+        self.supplyCards = {"BRICK":100,"GRAIN":100,"LUMBER":100,"ORE":100,"WOOL":100} 
         self.color = color #barva figurky
         self.corner = corner
         self.buildings = {"roads":15, "settlements":5, "cities":4}
@@ -567,12 +566,6 @@ class Player:
             self.supplyCards[supplyType] -= 1
             self.updatePlayerUI()
 
-    def addActionCard(self, supplyType):
-        pass
-
-    def removeActionCard(self, supplyType):
-        pass
-
     def countPoints(self):
         settlementsBuild = 5 - self.buildings["settlements"]
         citiesBuild = 4 - self.buildings["cities"]
@@ -580,12 +573,12 @@ class Player:
 
     def buyRoad(self, button=None):
         if self.supplyCards["BRICK"] < 1 or self.supplyCards["LUMBER"] < 1:
-            self.game.announcementArea.set_content("You do not have enough resources", 3)
-            self.game.announcementArea2.set_content("You do not have enough resources", 3)
+            self.game.announcementArea.set_content("You do not have enough resources", 2)
+            self.game.announcementArea2.set_content("You do not have enough resources", 2)
             return
-        if self.buildings["roads"] == 0:
-            self.game.announcementArea.set_content("You do not have any roads left", 3)
-            self.game.announcementArea2.set_content("You do not have any roads left", 3)
+        if self.buildings["roads"] <= 0:
+            self.game.announcementArea.set_content("You do not have any roads left", 2)
+            self.game.announcementArea2.set_content("You do not have any roads left", 2)
             return
 
         buildingPermission = False
@@ -608,7 +601,7 @@ class Player:
             self.game.announcementArea.set_content("You do not have enough resources", 2)
             self.game.announcementArea2.set_content("You do not have enough resources", 2)
             return
-        if self.buildings["settlements"] == 0:
+        if self.buildings["settlements"] <= 0:
             self.game.announcementArea.set_content("You do not have any settlements left", 2)
             self.game.announcementArea2.set_content("You do not have any settlements left", 2)
             return
@@ -633,7 +626,7 @@ class Player:
             self.game.announcementArea.set_content("You do not have enough resources", 2)
             self.game.announcementArea2.set_content("You do not have enough resources", 2)
             return
-        if self.buildings["cities"] == 0:
+        if self.buildings["cities"] <= 0:
             self.game.announcementArea.set_content("You do not have any cities left", 2)
             self.game.announcementArea2.set_content("You do not have any cities left", 2)
             return
@@ -775,15 +768,14 @@ class Player:
                 "Build settlement", self.boundingRectangle, self.buySettlement, scale=1.2))
             self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+3*YOffset), \
                 "Build city", self.boundingRectangle, self.buyCity, scale=1.2))
-            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+4*YOffset), \
-                "Buy action card", self.boundingRectangle, doNothing, scale=1.2))
             self.roadIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=810), \
                 "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_blue.png', background_color=QtCore.Qt.transparent)
             self.settlementIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=870), \
                 "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'village_blue.png', background_color=QtCore.Qt.transparent)
             self.cityIcon = ButtonItem(scene, QTtoART(x=320), QTtoART(y=950), \
                 "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'city_blue.png', background_color=QtCore.Qt.transparent)
-
+            self.pointLabel = ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+4*YOffset), \
+                "Points: " + str(self.points), self.boundingRectangle, doNothing, scale=2, background_color=QtCore.Qt.transparent, text_color="white")
             for item in self.items:
                 item.w = 180
 
@@ -832,15 +824,14 @@ class Player:
                 "Build settlement", self.boundingRectangle, self.buySettlement, scale=1.2))
             self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+3*YOffset), \
                 "Build city", self.boundingRectangle, self.buyCity, scale=1.2))
-            self.items.append(ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+4*YOffset), \
-                "Buy action card", self.boundingRectangle, doNothing, scale=1.2))
             self.roadIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=810), \
                 "", self.boundingRectangle, doNothing, scale=2, image_path=imagesPath+'road_green.png', background_color=QtCore.Qt.transparent)
             self.settlementIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=870), \
                 "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'village_green.png', background_color=QtCore.Qt.transparent)
             self.cityIcon = ButtonItem(scene, QTtoART(x=1600), QTtoART(y=950), \
                 "", self.boundingRectangle, doNothing, scale=3, image_path=imagesPath+'city_green.png', background_color=QtCore.Qt.transparent)
-
+            self.pointLabel = ButtonItem(scene, QTtoART(x=XCoord), QTtoART(y=YCoord+4*YOffset), \
+                "Points: " + str(self.points), self.boundingRectangle, doNothing, scale=2, background_color=QtCore.Qt.transparent, text_color="white")
             for item in self.items:
                 item.w = 180
 
@@ -910,6 +901,7 @@ class Player:
             label.setPlainText(str(self.supplyCards[key]))
         for key, label in self.buildingLabels.items():
             label.setPlainText(str(self.buildings[key]))
+        self.pointLabel.set_caption("Points: " + str(self.points))
 
     def disablePlayerUI(self):
         for button in self.items:
@@ -924,7 +916,7 @@ class Player:
 #################################################################################################################
 
 class Game: 
-    def __init__(self, scene, loadMapSlot, numberOfPlayers):
+    def __init__(self, scene, loadMapSlot, numberOfPlayers, mainWindow):
         self.scene = scene
         self.colors = ["blue", "green", "red", "yellow"]
         self.supplyCards = self.createStartingSupplyCards() #pole karet zasob
@@ -935,17 +927,12 @@ class Game:
             self.map = self.loadMap(loadMapSlot)
         self.players = self.createPlayers(numberOfPlayers)
         self.items = []
-        self.turnNumber = 8-1
+        self.turnNumber = -1
         self.endOfTurn = False
         self.recognizer = Recognizer()
         self.playerTurnMarks = [None] * 4
-        self.numberMark = None
-
-        #TODO na vymazani pak
-        self.rect = QtGui.QGraphicsRectItem(0,0,2000, 1200)
-        self.rect.setPen(QtGui.QPen(QtCore.Qt.white))
-        self.rect.setBrush(QtGui.QBrush(QtCore.Qt.transparent))
-        self.scene.addItem(self.rect)
+        self.numberMarks = [None] * 4
+        self.mainWindow = mainWindow
         
         self.scene.setBackgroundBrush(QtCore.Qt.black)
 
@@ -961,8 +948,6 @@ class Game:
         self.map.drawMap()
         for key, player in self.players.iteritems():
             player.drawPlayerUI(self.scene)
-
-        #TouchTableItem(self.scene, '/art/interface/touchtable/touch')
 
     def createPlayers(self, count):
         self.colors = self.colors[:count]
@@ -1062,10 +1047,6 @@ class Game:
             self.players[color].removeSupplyCard(supplyType)
             self.supplyCards[supplyType] +=1
 
-    def createStartingActionCards(self):
-        #vytvoreni balicku akcnich karet
-        pass
-
     def distributeSupplies(self, number):
         indices = [i for i, x in enumerate(self.map.tileNumbers) if x == number]
         for i in indices:
@@ -1089,18 +1070,34 @@ class Game:
             if mark != None:
                 mark.h = 150
 
+        if number != 0 or mode != "road":
+            for mark in self.numberMarks:
+                if mark != None:
+                    self.scene.removeItem(mark)
+
         if number != 0:
-            if self.numberMark != None:
-                self.scene.removeItem(self.numberMark)
-            self.numberMark = ButtonItem(self.scene, QTtoART(x=500), QTtoART(y=800), str(number), \
+            self.numberMarks[0] = ButtonItem(self.scene, QTtoART(x=500), QTtoART(y=800), str(number), \
              None, doNothing, background_color=QtCore.Qt.transparent, scale=4)
+            self.numberMarks[1] = ButtonItem(self.scene, QTtoART(x=1350), QTtoART(y=800), str(number), \
+             None, doNothing, background_color=QtCore.Qt.transparent, scale=4)
+            self.numberMarks[2] = ButtonItem(self.scene, QTtoART(x=1490), QTtoART(y=350), str(number), \
+             None, doNothing, background_color=QtCore.Qt.transparent, scale=4)
+            self.numberMarks[3] = ButtonItem(self.scene, QTtoART(x=640), QTtoART(y=350), str(number), \
+             None, doNothing, background_color=QtCore.Qt.transparent, scale=4)
+            self.numberMarks[2].setRotation(180)
+            self.numberMarks[3].setRotation(180)
 
     def checkGameEnd(self):
         for key, player in self.players.items():
             player.countPoints()
             if player.points >= 10:
-                self.announcementArea.set_content("THE END", 3)
-                self.announcementArea2.set_content("THE END", 3)
+                self.scene.clear()
+                self.endButton = ButtonItem(self.scene, QTtoART(x=800), QTtoART(y=600), "Back to menu", \
+             None, self.backToMenu, background_color=QtCore.Qt.green, scale=4)
+
+    def backToMenu(self, button=None):
+        self.scene.removeItem(self.endButton)
+        self.mainWindow.toMainMenu(fromEditor=True)
 
     def endTurn(self, button=None):
         self.nextTurnBtn.set_caption("Next turn")
@@ -1158,10 +1155,7 @@ class Game:
             self.players[self.colors[self.turnNumber%len(self.colors)]].enablePlayerUI()
             #hod kostkama
             number = self.recognizer.getDicesValue()
-            # number1 = randint(1,6)
-            # number2 = randint(1,6)
-            # number = number1 + number2
-            number=7
+            
             self.drawTurnOfPlayerAnnouncement(self.colors[self.turnNumber%len(self.colors)], number=number)
             
             if number == 7:

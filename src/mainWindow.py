@@ -24,15 +24,14 @@ class MainWindow():
         TouchTableItem(self.scene, '/art/interface/touchtable/touch')
 
         self.mainMenuItems = []
-        self.mainMenuItems.append(ButtonItem(self.scene, QTtoART(x=950), QTtoART(y=0), "New Game", None, \
-            self.launchGame, scale = 3))
-        mapSelection = DescItem(self.scene, QTtoART(x=950), QTtoART(y=120), None)
-        mapSelection.set_content("Map: Default", 3)
-        self.mainMenuItems.append(mapSelection)
-        self.mainMenuItems.append(ButtonItem(self.scene, 0.5, 0.5, "Map editor", None, self.launchMapEditor, scale = 3))
-        self.mainMenuItems.append(ButtonItem(self.scene, 0.5, 0.4, "Settings", None, self.toSettings, scale = 3))
-        self.mainMenuItems.append(ButtonItem(self.scene, 0.5, 0.3, "Exit", None, self.quitApp, scale = 3))
+        self.mainMenuItems.append(ButtonItem(self.scene, QTtoART(x=800), QTtoART(y=140), "New Game", None, \
+            self.launchGame, scale = 4))
+        self.mainMenuItems.append(ButtonItem(self.scene, QTtoART(x=800), QTtoART(y=320), "Map editor", None, self.launchMapEditor, scale = 4))
+        self.mainMenuItems.append(ButtonItem(self.scene, QTtoART(x=800), QTtoART(y=500), "Settings", None, self.toSettings, scale = 4))
+        self.mainMenuItems.append(ButtonItem(self.scene, QTtoART(x=800), QTtoART(y=680), "Exit", None, self.quitApp, scale = 4))
 
+        for item in self.mainMenuItems:
+            item.w = self.mainMenuItems[0].w
         changeMapXCoord = 500
         changeMapYCoord = 300
         changeMapXOffset = 210
@@ -99,11 +98,6 @@ class MainWindow():
             item.set_background_color(QtCore.Qt.green)
         button.set_background_color(QtCore.Qt.red)
 
-        if button.data == "default":
-            self.mainMenuItems[1].set_content("Map: Default", 3)
-        else:
-            self.mainMenuItems[1].set_content("Map: Slot " + str(button.data), 3)
-
     def toggleChangeMapMenu(self, button=None):
         if self.mapMenuHidden:
             for item in self.changeMapMenuItems:
@@ -134,7 +128,7 @@ class MainWindow():
     def launchGame(self, event):
         for item in self.mainMenuItems:
             self.scene.removeItem(item)
-        self.game = Game(self.scene, self.startingMap, self.numberOfPlayers)
+        self.game = Game(self.scene, self.startingMap, self.numberOfPlayers, self)
         self.game.nextTurn()
 
     def launchMapEditor(self, button):
