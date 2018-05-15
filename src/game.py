@@ -1055,7 +1055,6 @@ class Game:
     def drawTurnOfPlayerAnnouncement(self, color, mode="road", number=0):
         for mark in self.playerTurnMarks:
             if mark != None:
-                print "mazu"
                 self.scene.removeItem(mark)
 
         self.playerTurnMarks[0] = ButtonItem(self.scene, QTtoART(x=500), QTtoART(y=800), "", None, doNothing, \
