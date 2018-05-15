@@ -261,7 +261,7 @@ class Tile:
             self.numberBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]+XOffset), QTtoART(y=self.coords[1]+30), \
                 str(self.number), None, self.changeFocus, scale=3,\
                 background_color=QtCore.Qt.transparent, data=self.index)
-        elif self.number == 0 or self.number == -1:
+        elif self.number == 0 or self.number == -1 and self.editor==False:
             self.numberBtn = ButtonItem(self.scene, QTtoART(x=self.coords[0]+30), QTtoART(y=self.coords[1]+30), \
                "", None, self.changeFocus, scale=3,\
                 background_color=QtCore.Qt.transparent, data=self.index)
@@ -1157,8 +1157,8 @@ class Game:
             self.announcementArea2.set_content("")
             self.players[self.colors[self.turnNumber%len(self.colors)]].enablePlayerUI()
             #hod kostkama
-            #number = self.recognizer.getDicesValue()
-            number = 8
+            number = self.recognizer.getDicesValue()
+            
             self.drawTurnOfPlayerAnnouncement(self.colors[self.turnNumber%len(self.colors)], number=number)
             
             if number == 7:
